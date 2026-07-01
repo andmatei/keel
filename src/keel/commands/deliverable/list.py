@@ -9,6 +9,7 @@ from rich.table import Table
 
 from keel import workspace
 from keel.api import Output, load_project_manifest, resolve_cli_scope
+from keel.tags import format_tags
 
 
 @dataclass
@@ -17,6 +18,7 @@ class _DeliverableRow:
     phase: str
     description: str
     shared_worktree: bool
+    tags: list[str]
 
 
 def _scan(project_name: str) -> list[_DeliverableRow]:
@@ -38,6 +40,7 @@ def _scan(project_name: str) -> list[_DeliverableRow]:
                 phase=phase,
                 description=m.project.description,
                 shared_worktree=m.project.shared_worktree,
+                tags=list(m.project.tags),
             )
         )
     return rows
@@ -46,7 +49,10 @@ def _scan(project_name: str) -> list[_DeliverableRow]:
 def cmd_list(
     ctx: typer.Context,
     project: str | None = typer.Option(
-        None, "--project", "-p", help="Parent project. Auto-detected from CWD if omitted."
+        None, "--project", "-p", help="Project name. Auto-detected from CWD if omitted."
+    ),
+    tag: list[str] | None = typer.Option(
+        None, "--tag", help="Filter to deliverables with this tag. Repeatable; AND semantics."
     ),
     json_mode: bool = typer.Option(False, "--json", help="Emit machine-readable JSON to stdout."),
 ) -> None:
@@ -57,6 +63,9 @@ def cmd_list(
     project = scope.project
 
     rows = _scan(project)
+    if tag:
+        tag_set = set(tag)
+        rows = [r for r in rows if tag_set.issubset(set(r.tags))]
 
     if json_mode:
         out.result(
@@ -67,6 +76,7 @@ def cmd_list(
                         "phase": r.phase,
                         "description": r.description,
                         "shared_worktree": r.shared_worktree,
+                        "tags": r.tags,
                     }
                     for r in rows
                 ]
@@ -82,7 +92,14 @@ def cmd_list(
     table.add_column("Name")
     table.add_column("Phase")
     table.add_column("Shared")
+    table.add_column("Tags")
     table.add_column("Description")
     for r in rows:
-        table.add_row(r.name, r.phase, "yes" if r.shared_worktree else "no", r.description)
+        table.add_row(
+            r.name,
+            r.phase,
+            "yes" if r.shared_worktree else "no",
+            format_tags(r.tags) if r.tags else "",
+            r.description,
+        )
     out.print_rich(table)

@@ -47,7 +47,7 @@ def cmd_show(
         help="Decision scope: a deliverable instead of the project. Auto-detected from CWD.",
     ),
     project: str | None = typer.Option(
-        None, "--project", "-p", help="Parent project. Auto-detected from CWD if omitted."
+        None, "--project", "-p", help="Project name. Auto-detected from CWD if omitted."
     ),
     raw: bool = typer.Option(
         False, "--raw", help="Print the raw file contents unchanged (pipe-friendly)."

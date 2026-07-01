@@ -11,9 +11,7 @@ from keel.api import ErrorCode, Output
 
 def cmd_validate(
     ctx: typer.Context,
-    path: Path = typer.Argument(
-        ..., help="Path to a project.toml, deliverable.toml, or milestones.toml."
-    ),
+    path: Path = typer.Argument(..., help="Path to a project.toml or milestones.toml."),
     json_mode: bool = typer.Option(False, "--json", help="Emit machine-readable JSON to stdout."),
 ) -> None:
     """Validate a manifest file against its Pydantic schema."""
@@ -28,19 +26,16 @@ def cmd_validate(
 
         loader = load_project_manifest
         kind = "project"
-    elif name == "deliverable.toml":
-        from keel.manifest import load_deliverable_manifest
-
-        loader = load_deliverable_manifest
-        kind = "deliverable"
     elif name == "milestones.toml":
+        from functools import partial
+
         from keel.manifest import load_milestones_manifest
 
-        loader = load_milestones_manifest
+        loader = partial(load_milestones_manifest, validate=True)
         kind = "milestones"
     else:
         out.fail(
-            f"unsupported manifest file: {name} (expected project.toml/deliverable.toml/milestones.toml)",
+            f"unsupported manifest file: {name} (expected project.toml/milestones.toml)",
             code=ErrorCode.INVALID_NAME,
         )
 

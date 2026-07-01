@@ -16,7 +16,7 @@ from keel.api import HINT_LIST_DECISIONS, ErrorCode, OpLog, Output, resolve_cli_
 from keel.hooks import HookAborted, hook_event, hookable
 
 
-@hookable("decision-new")
+@hookable("decision.create")
 def cmd_new(
     ctx: typer.Context,
     title: str = typer.Argument(...),
@@ -27,7 +27,7 @@ def cmd_new(
         help="Decision scope: a deliverable instead of the project. Auto-detected from CWD.",
     ),
     project: str | None = typer.Option(
-        None, "--project", "-p", help="Parent project. Auto-detected from CWD if omitted."
+        None, "--project", "-p", help="Project name. Auto-detected from CWD if omitted."
     ),
     slug: str | None = typer.Option(
         None, "--slug", help="Override the auto-generated slug from the title."
@@ -43,7 +43,7 @@ def cmd_new(
     force: bool = typer.Option(
         False, "--force", help="Overwrite an existing decision file with the same name."
     ),
-    no_verify: bool = typer.Option(False, "--no-verify", help="Skip pre-decision-new hooks."),
+    no_verify: bool = typer.Option(False, "--no-verify", help="Skip decision.create.pre hooks."),
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Print intended operations and exit; write nothing."
     ),
@@ -94,7 +94,7 @@ def cmd_new(
 
     try:
         with hook_event(
-            "decision-new",
+            "decision.create",
             project=project,
             deliverable=deliverable,
             payload={"slug": slug_value, "title": title, "supersedes": supersedes},
@@ -125,7 +125,7 @@ def cmd_new(
             ev.add_post_payload({"path": str(path)})
     except HookAborted as e:
         out.fail(
-            f"decision new aborted: {e} (use --no-verify to override)",
+            f"decision.create aborted: {e} (use --no-verify to override)",
             code=ErrorCode.PREFLIGHT_BLOCKED,
         )
 

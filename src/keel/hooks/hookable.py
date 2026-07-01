@@ -2,14 +2,15 @@
 
 Commands opt into hook firing by:
 
-    @hookable("new")
+    @hookable("project.create")
     def cmd_new(ctx, ...):
-        with hook_event("new", project=slug, payload={...}, out=out) as e:
+        with hook_event("project.create", project=slug, payload={...}, out=out) as e:
             # ... do the work ...
             e.add_post_payload({"path": str(unit_dir)})  # optional post-only fields
 
 The decorator records the command in the registry for `keel hooks list`.
-The context manager fires `pre-<name>` on entry, `post-<name>` on clean exit.
+The context manager fires ``entity.action.pre`` on entry, ``entity.action.post``
+on clean exit.
 """
 
 from __future__ import annotations
@@ -88,7 +89,7 @@ def _project_dir_for(project: str | None, deliverable: str | None) -> Any:
 
 @contextmanager
 def hook_event(
-    name: str,
+    event_base: str,
     *,
     project: str | None,
     deliverable: str | None = None,
@@ -97,7 +98,10 @@ def hook_event(
     out: Output,
     no_verify: bool = False,
 ) -> Iterator[_MutableEvent]:
-    """Fire pre-<name> on entry, post-<name> on clean exit.
+    """Fire ``entity.action.pre`` on entry, ``entity.action.post`` on clean exit.
+
+    *event_base* is a dotted ``"entity.action"`` string (e.g.
+    ``"project.create"``).
 
     The yielded object exposes `add_post_payload(...)` so the body can
     augment the post payload with values it computed (e.g., resulting path).
@@ -105,9 +109,11 @@ def hook_event(
     `no_verify=True` skips ALL pre-event subscribers (in-tree + plugin +
     user-script). Post-event subscribers always run on clean exit.
     """
+    entity, action = event_base.split(".", 1)
+
     pre_payload = dict(payload or {})
     handle = _MutableEvent(
-        name=name,
+        name=event_base,
         project=project,
         deliverable=deliverable,
         positional_args=tuple(positional_args),
@@ -119,7 +125,8 @@ def hook_event(
 
     if not no_verify:
         pre_event = HookEvent(
-            name=name,
+            entity=entity,
+            action=action,
             phase="pre",
             project=project,
             deliverable=deliverable,
@@ -132,7 +139,8 @@ def hook_event(
 
     post_payload = {**pre_payload, **handle.post_extras}
     post_event = HookEvent(
-        name=name,
+        entity=entity,
+        action=action,
         phase="post",
         project=project,
         deliverable=deliverable,

@@ -9,10 +9,8 @@ Re-exported here for backward compatibility — callers can `from keel.manifest 
 """
 
 from keel.manifest.io import (
-    load_deliverable_manifest,
     load_milestones_manifest,
     load_project_manifest,
-    save_deliverable_manifest,
     save_milestones_manifest,
     save_project_manifest,
 )
@@ -39,10 +37,8 @@ __all__ = [
     "ProjectMeta",
     "RepoSpec",
     "Task",
-    "load_deliverable_manifest",
     "load_milestones_manifest",
     "load_project_manifest",
-    "save_deliverable_manifest",
     "save_milestones_manifest",
     "save_project_manifest",
     "edit_milestones",

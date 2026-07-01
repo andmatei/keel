@@ -31,13 +31,17 @@ def _scope_from_event(event: HookEvent) -> Scope:
 
 def _template_diff(scope: Scope, filename: str, template_name: str) -> bool:
     """True if the file on disk differs from a fresh template render."""
-    from keel import templates
+    # Intentionally uses the package-default render() rather than render_for_scope().
+    # The preflight checks whether the file still matches the ORIGINAL scaffold output.
+    # Using render_for_scope() would make the check sensitive to workspace template
+    # overrides installed after scaffolding, causing false "file is edited" results.
+    from keel.templates import render
 
     path = scope.unit_dir / filename
     if not path.is_file():
         return True  # missing file counts as "different"
     actual = path.read_text()
-    rendered = templates.render(template_name, name=scope.project, description="")
+    rendered = render(template_name, name=scope.project, description="")
     return actual.strip() != rendered.strip()
 
 
@@ -133,7 +137,7 @@ _BUILTIN_LISTENERS = (
 
 def register_builtin_listeners() -> None:
     """Register all built-in pre-phase listeners. Idempotent."""
-    existing = set(_REGISTRY.get("pre-phase", []))
+    existing = set(_REGISTRY.get("project.phase.pre", []))
     for fn in _BUILTIN_LISTENERS:
         if fn not in existing:
-            subscribes_to("pre-phase")(fn)
+            subscribes_to("project.phase.pre")(fn)

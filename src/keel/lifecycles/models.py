@@ -11,7 +11,11 @@ edge added on top of any explicit transitions.
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+import re
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+_STATE_NAME_RE = re.compile(r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$")
 
 
 class LifecycleState(BaseModel):
@@ -34,6 +38,17 @@ class Lifecycle(BaseModel):
     terminal: list[str] = Field(min_length=1)
     states: dict[str, LifecycleState] = Field(min_length=1)
     transitions: dict[str, list[str]] = Field(default_factory=dict)
+
+    @field_validator("states", mode="before")
+    @classmethod
+    def _validate_state_names(cls, v: dict) -> dict:
+        for name in v:
+            if not _STATE_NAME_RE.match(name):
+                raise ValueError(
+                    f"state name {name!r} must be lowercase alphanumeric + hyphens, "
+                    f"start with a letter (e.g. 'scoping', 'in-review')"
+                )
+        return v
 
     @model_validator(mode="after")
     def _check_referenced_names(self) -> Lifecycle:

@@ -89,3 +89,71 @@ def test_list_active_filter(projects, make_project, monkeypatch) -> None:
     data = json.loads(result.stdout)
     names = {p["name"] for p in data["projects"]}
     assert names == {"beta"}
+
+
+def test_list_tag_filter(projects, make_project) -> None:
+    from keel.manifest import load_project_manifest, save_project_manifest
+
+    proj_a = make_project("alpha", "a desc")
+    proj_b = make_project("beta", "b desc")
+    m_a = load_project_manifest(proj_a / "project.toml")
+    m_a.project.tags = ["api", "research"]
+    save_project_manifest(proj_a / "project.toml", m_a)
+    m_b = load_project_manifest(proj_b / "project.toml")
+    m_b.project.tags = ["api", "webhook"]
+    save_project_manifest(proj_b / "project.toml", m_b)
+
+    result = runner.invoke(app, ["list", "--tag", "api", "--json"])
+    data = json.loads(result.stdout)
+    names = {p["name"] for p in data["projects"]}
+    assert names == {"alpha", "beta"}
+
+
+def test_list_tag_filter_and_semantics(projects, make_project) -> None:
+    from keel.manifest import load_project_manifest, save_project_manifest
+
+    proj_a = make_project("alpha")
+    proj_b = make_project("beta")
+    m_a = load_project_manifest(proj_a / "project.toml")
+    m_a.project.tags = ["api", "research"]
+    save_project_manifest(proj_a / "project.toml", m_a)
+    m_b = load_project_manifest(proj_b / "project.toml")
+    m_b.project.tags = ["api", "webhook"]
+    save_project_manifest(proj_b / "project.toml", m_b)
+
+    result = runner.invoke(app, ["list", "--tag", "api", "--tag", "research", "--json"])
+    data = json.loads(result.stdout)
+    names = {p["name"] for p in data["projects"]}
+    assert names == {"alpha"}
+
+
+def test_list_shows_tags_in_json(projects, make_project) -> None:
+    from keel.manifest import load_project_manifest, save_project_manifest
+
+    proj = make_project("foo")
+    m = load_project_manifest(proj / "project.toml")
+    m.project.tags = ["api"]
+    save_project_manifest(proj / "project.toml", m)
+
+    result = runner.invoke(app, ["list", "--json"])
+    data = json.loads(result.stdout)
+    assert data["projects"][0]["tags"] == ["api"]
+
+
+def test_list_tag_filter_composes_with_phase(projects, make_project) -> None:
+    from keel.manifest import load_project_manifest, save_project_manifest
+
+    proj_a = make_project("alpha")
+    proj_b = make_project("beta")
+    m_a = load_project_manifest(proj_a / "project.toml")
+    m_a.project.tags = ["api"]
+    save_project_manifest(proj_a / "project.toml", m_a)
+    m_b = load_project_manifest(proj_b / "project.toml")
+    m_b.project.tags = ["api"]
+    save_project_manifest(proj_b / "project.toml", m_b)
+    (proj_b / ".keel" / "phase").write_text("implementing\n")
+
+    result = runner.invoke(app, ["list", "--tag", "api", "--phase", "scoping", "--json"])
+    data = json.loads(result.stdout)
+    names = {p["name"] for p in data["projects"]}
+    assert names == {"alpha"}

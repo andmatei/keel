@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# keel-ai PostToolUse hook
+# Detects keel lifecycle transitions and injects follow-up instructions
+# based on the project's resolved trigger configuration.
+set -euo pipefail
+
+HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Read the PostToolUse payload from stdin.
+PAYLOAD=$(cat)
+
+# Fast path: skip if no keel status change signal in the output.
+if ! printf '%s' "$PAYLOAD" | grep -qE '(Task|Milestone) (done|started|cancelled):'; then
+    exit 0
+fi
+
+# Map CLI output to event + status.
+EVENT=""
+TO_STATUS=""
+if printf '%s' "$PAYLOAD" | grep -q 'Task done:'; then
+    EVENT="task.status.post"; TO_STATUS="done"
+elif printf '%s' "$PAYLOAD" | grep -q 'Task started:'; then
+    EVENT="task.status.post"; TO_STATUS="active"
+elif printf '%s' "$PAYLOAD" | grep -q 'Task cancelled:'; then
+    EVENT="task.status.post"; TO_STATUS="cancelled"
+elif printf '%s' "$PAYLOAD" | grep -q 'Milestone done:'; then
+    EVENT="milestone.status.post"; TO_STATUS="done"
+fi
+
+[ -z "$EVENT" ] && exit 0
+command -v keel &>/dev/null || exit 0
+
+# Match resolved triggers and output hook JSON.
+keel ai show-config --json 2>/dev/null \
+    | python3 "$HOOK_DIR/match_triggers.py" "$EVENT" "$TO_STATUS" \
+    || true

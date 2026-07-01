@@ -91,7 +91,7 @@ def cmd_export(
         None, "-D", "--deliverable", help="Export this deliverable instead of the whole project."
     ),
     project: str | None = typer.Option(
-        None, "--project", "-p", help="Project name (alternative to positional)."
+        None, "--project", "-p", help="Project name. Auto-detected from CWD if omitted."
     ),
     no_decisions: bool = typer.Option(False, "--no-decisions", help="Skip the decisions appendix."),
     no_deliverables: bool = typer.Option(
@@ -113,7 +113,7 @@ def cmd_export(
     """Compose a project's or deliverable's design + decisions into a single markdown document."""
     out_obj = Output.from_context(ctx, json_mode=json_mode)
     project = project or name
-    scope = workspace.resolve_cli_scope(project, deliverable)
+    scope = workspace.resolve_cli_scope(project, deliverable, out=out_obj)
     project = scope.project
     deliverable = scope.deliverable
 

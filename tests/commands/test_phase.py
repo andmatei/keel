@@ -304,7 +304,7 @@ def test_phase_fires_post_phase_subscriber(projects, make_project, monkeypatch) 
 
     captured: list[tuple[str | None, str | None]] = []
 
-    @subscribes_to("post-phase")
+    @subscribes_to("project.phase.post")
     def capture(event: HookEvent, *, out) -> None:
         captured.append((event.payload.get("from"), event.payload.get("to")))
 

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "keel-cli"
-version = "0.0.4"
+version = "0.0.7"
 description = "CLI for the projects workspace"
 requires-python = ">=3.11"
 authors = [{ name = "Andrei Matei" }]
@@ -39,7 +39,7 @@ dev = [
 # new line per first-party plugin; `pip install keel-cli[<name>]` becomes
 # the canonical install path for that combination.
 jira = ["keel-jira>=0.0.2"]
-all = ["keel-jira>=0.0.2"]
+all = ["keel-jira>=0.0.2", "keel-daemon>=0.0.1"]
 
 [project.scripts]
 keel = "keel.app:app"
@@ -56,6 +56,7 @@ members = ["plugins/*"]
 
 [tool.uv.sources]
 keel-jira = { workspace = true }
+keel-daemon = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -85,3 +86,8 @@ ignore = [
 
 [tool.ruff.format]
 quote-style = "double"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]

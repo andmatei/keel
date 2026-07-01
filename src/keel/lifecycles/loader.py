@@ -11,12 +11,15 @@ deferred to a future plan.
 
 from __future__ import annotations
 
+import logging
 import tomllib
 from collections.abc import Iterator
 from importlib import resources
 from pathlib import Path
 
 from keel.lifecycles.models import Lifecycle
+
+_log = logging.getLogger(__name__)
 
 
 class LifecycleNotFoundError(LookupError):
@@ -45,38 +48,45 @@ def _load_lifecycle_from_path(path: Path, *, expected_name: str | None = None) -
     return lc
 
 
+def _resolve_lifecycle_file(name: str) -> tuple[Path | None, str | None]:
+    """Find the lifecycle file by name. Returns (path, text) or (None, None).
+
+    For user files, path is a real Path. For builtins, path is resolved from importlib.
+    """
+    user_path = _user_library_dir() / f"{name}.toml"
+    if user_path.is_file():
+        return user_path, user_path.read_text()
+
+    builtin_dir = resources.files("keel.lifecycles.defaults")
+    builtin_file = builtin_dir.joinpath(f"{name}.toml")
+    if builtin_file.is_file():
+        return Path(str(builtin_file)), builtin_file.read_text()
+
+    return None, None
+
+
 def load_lifecycle(name: str) -> Lifecycle:
     """Resolve a lifecycle by name through the precedence chain.
 
     Raises `LifecycleNotFoundError` if no match is found, or if a candidate
     file's `name` field disagrees with its filename stem.
     """
-    user_path = _user_library_dir() / f"{name}.toml"
-    if user_path.is_file():
-        return _load_lifecycle_from_path(user_path, expected_name=name)
-
-    builtin_dir = resources.files("keel.lifecycles.defaults")
-    builtin_file = builtin_dir.joinpath(f"{name}.toml")
-    if builtin_file.is_file():
-        text = builtin_file.read_text()
-        raw = tomllib.loads(text)
-        lc = Lifecycle.model_validate(raw)
-        if lc.name != name:
-            raise LifecycleNotFoundError(name)
-        return lc
-
-    raise LifecycleNotFoundError(name)
+    path, text = _resolve_lifecycle_file(name)
+    if path is None:
+        raise LifecycleNotFoundError(name)
+    raw = tomllib.loads(text)
+    lc = Lifecycle.model_validate(raw)
+    if lc.name != name:
+        raise LifecycleNotFoundError(name)
+    return lc
 
 
 def lifecycle_source_path(name: str) -> Path:
     """Return the file path resolved for `name`. Used by `keel new` to snapshot."""
-    user_path = _user_library_dir() / f"{name}.toml"
-    if user_path.is_file():
-        return user_path
-    builtin = resources.files("keel.lifecycles.defaults").joinpath(f"{name}.toml")
-    if builtin.is_file():
-        return Path(str(builtin))
-    raise LifecycleNotFoundError(name)
+    path, _ = _resolve_lifecycle_file(name)
+    if path is None:
+        raise LifecycleNotFoundError(name)
+    return path
 
 
 def iter_lifecycles() -> Iterator[Lifecycle]:
@@ -89,6 +99,7 @@ def iter_lifecycles() -> Iterator[Lifecycle]:
             try:
                 lc = _load_lifecycle_from_path(path, expected_name=path.stem)
             except Exception:
+                _log.warning("skipping malformed lifecycle file: %s", path, exc_info=True)
                 continue
             if lc.name in seen:
                 continue
@@ -104,6 +115,7 @@ def iter_lifecycles() -> Iterator[Lifecycle]:
             raw = tomllib.loads(text)
             lc = Lifecycle.model_validate(raw)
         except Exception:
+            _log.warning("skipping malformed builtin lifecycle: %s", entry.name, exc_info=True)
             continue
         if lc.name in seen:
             continue

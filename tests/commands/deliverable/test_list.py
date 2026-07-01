@@ -42,3 +42,41 @@ def test_list_auto_detects_project_from_cwd(
     result = runner.invoke(app, ["deliverable", "list"])
     assert result.exit_code == 0
     assert "bar" in result.stdout
+
+
+def test_list_tag_filter(projects, make_deliverable) -> None:
+    from keel import workspace
+    from keel.manifest import load_project_manifest, save_project_manifest
+
+    make_deliverable(project_name="foo", name="alpha", description="a")
+    make_deliverable(project_name="foo", name="beta", description="b")
+    d_a = workspace.deliverable_dir("foo", "alpha")
+    d_b = workspace.deliverable_dir("foo", "beta")
+    m_a = load_project_manifest(d_a / "project.toml")
+    m_a.project.tags = ["api"]
+    save_project_manifest(d_a / "project.toml", m_a)
+    m_b = load_project_manifest(d_b / "project.toml")
+    m_b.project.tags = ["webhook"]
+    save_project_manifest(d_b / "project.toml", m_b)
+
+    result = runner.invoke(
+        app, ["deliverable", "list", "--project", "foo", "--tag", "api", "--json"]
+    )
+    payload = json.loads(result.stdout)
+    assert len(payload["deliverables"]) == 1
+    assert payload["deliverables"][0]["name"] == "alpha"
+
+
+def test_list_shows_tags_in_json(projects, make_deliverable) -> None:
+    from keel import workspace
+    from keel.manifest import load_project_manifest, save_project_manifest
+
+    make_deliverable(project_name="foo", name="bar")
+    d = workspace.deliverable_dir("foo", "bar")
+    m = load_project_manifest(d / "project.toml")
+    m.project.tags = ["api", "webhook"]
+    save_project_manifest(d / "project.toml", m)
+
+    result = runner.invoke(app, ["deliverable", "list", "--project", "foo", "--json"])
+    payload = json.loads(result.stdout)
+    assert payload["deliverables"][0]["tags"] == ["api", "webhook"]

@@ -53,8 +53,9 @@ def cmd_show(
         lines.append(f"Description: {task.description}")
     if task.branch:
         lines.append(f"Branch: {task.branch}")
-    if task.ticket_id:
-        lines.append(f"Ticket: {task.ticket_id}")
+    if task.tickets:
+        for prov, tid in task.tickets.items():
+            lines.append(f"Ticket ({prov}): {tid}")
     if deps_status:
         lines.append("Dependencies:")
         for d in deps_status:

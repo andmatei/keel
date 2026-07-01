@@ -10,12 +10,19 @@ from typing import Any, Literal
 class HookEvent:
     """A single hook event firing.
 
+    Events use a dotted namespace: ``entity.action.phase``.
+
     Attributes are immutable so a misbehaving subscriber can't corrupt
     state for downstream subscribers.
     """
 
-    name: str
-    """Event name without phase prefix (e.g., 'new', 'phase', 'deliverable-add')."""
+    entity: str
+    """The resource type the event targets (e.g., 'project', 'milestone',
+    'deliverable', 'decision', 'task', 'tag')."""
+
+    action: str
+    """The operation performed on the entity (e.g., 'create', 'rm', 'status',
+    'phase', 'move', 'rename', 'archive', 'restore', 'add')."""
 
     phase: Literal["pre", "post"]
     """Whether this event fires before or after the command's work."""
@@ -34,8 +41,8 @@ class HookEvent:
 
     @property
     def full_name(self) -> str:
-        """Combined hook name, e.g. 'pre-new' or 'post-phase'."""
-        return f"{self.phase}-{self.name}"
+        """Dotted event name, e.g. 'project.create.pre' or 'milestone.status.post'."""
+        return f"{self.entity}.{self.action}.{self.phase}"
 
 
 class HookAborted(RuntimeError):

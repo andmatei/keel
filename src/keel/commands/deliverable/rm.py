@@ -15,14 +15,16 @@ from keel.api import (
     confirm_destructive,
     resolve_cli_scope,
 )
+from keel.hooks import HookAborted, hook_event, hookable
 from keel.markdown_edit import remove_bullet_under_heading
 
 
+@hookable("deliverable.rm")
 def cmd_rm(
     ctx: typer.Context,
     name: str = typer.Argument(...),
     project: str | None = typer.Option(
-        None, "--project", "-p", help="Parent project. Auto-detected from CWD if omitted."
+        None, "--project", "-p", help="Project name. Auto-detected from CWD if omitted."
     ),
     keep_code: bool = typer.Option(
         False, "--keep-code", help="Preserve the worktree dir even when removing the deliverable."
@@ -38,6 +40,7 @@ def cmd_rm(
     yes: bool = typer.Option(
         False, "-y", "--yes", help="Skip interactive prompts (description, etc.)."
     ),
+    no_verify: bool = typer.Option(False, "--no-verify", help="Skip deliverable.rm.pre hooks."),
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Print intended operations and exit; write nothing."
     ),
@@ -73,39 +76,59 @@ def cmd_rm(
         yes=yes,
     )
 
-    # Remove worktree if present (and not --keep-code)
-    code_dir = deliv / "code"
-    if code_dir.is_dir() and not keep_code:
-        try:
-            git_ops.remove_worktree(code_dir, force=force)
-        except git_ops.GitError as e:
-            out.fail(f"failed to remove worktree at {code_dir}: {e}", code=ErrorCode.GIT_FAILED)
-
-    # Remove unit contents (unless --keep-design preserves design artifacts).
-    # New layout has design files at the unit root rather than a design/ subdir, so we remove
-    # everything except the worktree dir(s) we want to keep.
-    if not keep_design and deliv.is_dir():
-        for child in list(deliv.iterdir()):
-            # Preserve any worktree dirs requested via --keep-code
-            if keep_code and child.name == "code":
-                continue
-            if child.is_dir():
-                shutil.rmtree(child)
-            else:
-                child.unlink()
-
-    # If the deliverable dir is now empty (no code/ kept), rmdir it.
     try:
-        if deliv.is_dir() and not any(deliv.iterdir()):
-            deliv.rmdir()
-    except OSError:
-        pass  # best-effort
+        with hook_event(
+            "deliverable.rm",
+            project=project,
+            deliverable=name,
+            payload={"name": name, "project": project},
+            positional_args=(name,),
+            out=out,
+            no_verify=no_verify,
+        ):
+            # Remove worktree if present (and not --keep-code)
+            code_dir = deliv / "code"
+            if code_dir.is_dir() and not keep_code:
+                try:
+                    git_ops.remove_worktree(code_dir, force=force)
+                except git_ops.GitError as e:
+                    out.fail(
+                        f"failed to remove worktree at {code_dir}: {e}",
+                        code=ErrorCode.GIT_FAILED,
+                    )
 
-    # Clean up parent design.md (the AST edit is idempotent).
-    parent_design = scope.design_md_path
-    if parent_design.is_file():
-        parent_design.write_text(
-            remove_bullet_under_heading(parent_design.read_text(), "Deliverables", f"- **{name}**:")
+            # Remove unit contents (unless --keep-design preserves design artifacts).
+            # New layout has design files at the unit root rather than a design/ subdir,
+            # so we remove everything except the worktree dir(s) we want to keep.
+            if not keep_design and deliv.is_dir():
+                for child in list(deliv.iterdir()):
+                    # Preserve any worktree dirs requested via --keep-code
+                    if keep_code and child.name == "code":
+                        continue
+                    if child.is_dir():
+                        shutil.rmtree(child)
+                    else:
+                        child.unlink()
+
+            # If the deliverable dir is now empty (no code/ kept), rmdir it.
+            try:
+                if deliv.is_dir() and not any(deliv.iterdir()):
+                    deliv.rmdir()
+            except OSError:
+                pass  # best-effort
+
+            # Clean up parent design.md (the AST edit is idempotent).
+            parent_design = scope.design_md_path
+            if parent_design.is_file():
+                parent_design.write_text(
+                    remove_bullet_under_heading(
+                        parent_design.read_text(), "Deliverables", f"- **{name}**:"
+                    )
+                )
+    except HookAborted as e:
+        out.fail(
+            f"deliverable.rm aborted: {e} (use --no-verify to override)",
+            code=ErrorCode.PREFLIGHT_BLOCKED,
         )
 
     out.result(

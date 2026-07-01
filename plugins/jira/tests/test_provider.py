@@ -161,7 +161,7 @@ def test_create_task_with_typed_object(jira_env, make_project) -> None:
     save_milestones_manifest(
         proj / "milestones.toml",
         MilestonesManifest(
-            milestones=[Milestone(id="m1", title="Foundation", ticket_id="PROJ-10")],
+            milestones=[Milestone(id="m1", title="Foundation", tickets={"jira": "PROJ-10"})],
             tasks=[],
         ),
     )
@@ -180,7 +180,7 @@ def test_create_task_with_typed_object(jira_env, make_project) -> None:
     payload = _json.loads(route.calls.last.request.read())
     assert payload["fields"]["issuetype"]["name"] == "Sub-task"
     assert payload["fields"]["summary"] == "Set up CI"
-    # Parent was looked up from the milestones manifest's ticket_id.
+    # Parent was looked up from the milestones manifest's tickets dict.
     assert payload["fields"]["parent"] == {"key": "PROJ-10"}
     # Default task_description template appends "— keel: `t1`".
     desc_text = payload["fields"]["description"]["content"][0]["content"][0]["text"]

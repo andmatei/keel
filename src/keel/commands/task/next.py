@@ -10,6 +10,7 @@ from keel.api import (
     ErrorCode,
     Output,
     edit_milestones,
+    get_task,
     load_milestones_manifest,
     ready_tasks,
     resolve_cli_scope,
@@ -62,7 +63,7 @@ def cmd_next(
             return f"{slugify(user)}/{project_name}-{milestone_id}-{task_id}"
 
         with edit_milestones(scope) as manifest:
-            task = next(t for t in manifest.tasks if t.id == next_task.id)
+            task = get_task(manifest, next_task.id, out=out)
             if task.status != "planned":
                 out.fail(
                     f"cannot start task in status '{task.status}' (must be 'planned')",

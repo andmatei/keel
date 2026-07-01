@@ -14,12 +14,54 @@ def validate_dag(m: MilestonesManifest) -> None:
     """Validate that the milestone/task graph is well-formed.
 
     Checks:
+    - No duplicate milestone or task IDs
+    - Milestone and task IDs are disjoint (no cross-namespace collisions)
+    - Every milestone.parent references an existing milestone id
     - Every task.milestone references an existing milestone id
     - Every depends_on entry references an existing task id
     - The dependency graph is acyclic
     """
-    milestone_ids = {ms.id for ms in m.milestones}
-    task_ids = {t.id for t in m.tasks}
+    # Duplicate ID checks.
+    seen_m: set[str] = set()
+    for ms in m.milestones:
+        if ms.id in seen_m:
+            raise GraphError(f"duplicate milestone id {ms.id!r}")
+        seen_m.add(ms.id)
+    milestone_ids = seen_m
+
+    seen_t: set[str] = set()
+    for t in m.tasks:
+        if t.id in seen_t:
+            raise GraphError(f"duplicate task id {t.id!r}")
+        seen_t.add(t.id)
+    task_ids = seen_t
+
+    # Cross-namespace collision: milestone and task IDs must be disjoint.
+    overlap = milestone_ids & task_ids
+    if overlap:
+        raise GraphError(
+            f"ID(s) used as both milestone and task: {', '.join(sorted(overlap))}"
+        )
+
+    # Parent reference and cycle check.
+    parent_map: dict[str, str | None] = {ms.id: ms.parent for ms in m.milestones}
+    for ms in m.milestones:
+        if ms.parent is not None:
+            if ms.parent == ms.id:
+                raise GraphError(f"milestone {ms.id!r} cannot be its own parent")
+            if ms.parent not in milestone_ids:
+                raise GraphError(
+                    f"milestone {ms.id!r} references unknown parent milestone {ms.parent!r}"
+                )
+    # Detect transitive cycles in parent chain (e.g. m1→m2→m1).
+    for start_id in milestone_ids:
+        visited: set[str] = set()
+        cur: str | None = start_id
+        while cur is not None:
+            if cur in visited:
+                raise GraphError(f"cycle in milestone parent chain involving {cur!r}")
+            visited.add(cur)
+            cur = parent_map.get(cur)
 
     for t in m.tasks:
         if t.milestone not in milestone_ids:
@@ -53,25 +95,35 @@ def validate_dag(m: MilestonesManifest) -> None:
 
 
 def ready_tasks(m: MilestonesManifest) -> list[Task]:
-    """Tasks with status=planned and all dependencies in a terminal (done/cancelled) state."""
+    """Tasks with status=planned and all dependencies in a terminal (done/cancelled) state.
+
+    Unknown dependency IDs are treated as blocking (safe default).
+    """
     by_id = {t.id: t for t in m.tasks}
     out: list[Task] = []
     for t in m.tasks:
         if t.status != "planned":
             continue
-        if all(is_terminal_task_state(by_id[d].status) for d in t.depends_on if d in by_id):
+        if all(
+            d in by_id and is_terminal_task_state(by_id[d].status) for d in t.depends_on
+        ):
             out.append(t)
     return out
 
 
 def blocked_tasks(m: MilestonesManifest) -> list[Task]:
-    """Tasks with status=planned but at least one dependency in a non-terminal state."""
+    """Tasks with status=planned but at least one dependency in a non-terminal state.
+
+    Unknown dependency IDs are treated as blocking.
+    """
     by_id = {t.id: t for t in m.tasks}
     out: list[Task] = []
     for t in m.tasks:
         if t.status != "planned":
             continue
-        if any(not is_terminal_task_state(by_id[d].status) for d in t.depends_on if d in by_id):
+        if any(
+            d not in by_id or not is_terminal_task_state(by_id[d].status) for d in t.depends_on
+        ):
             out.append(t)
     return out
 

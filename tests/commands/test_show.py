@@ -118,3 +118,44 @@ def test_show_renders_explicit_milestones(projects, make_project, monkeypatch) -
     result = runner.invoke(app, ["show", "foo"])
     assert "m1" in result.stdout
     assert "Foundation" in result.stdout
+
+
+def test_show_displays_tags(projects, make_project) -> None:
+    from keel.manifest import load_project_manifest, save_project_manifest
+
+    proj = make_project("foo")
+    m = load_project_manifest(proj / "project.toml")
+    m.project.tags = ["api", "webhook"]
+    save_project_manifest(proj / "project.toml", m)
+
+    result = runner.invoke(app, ["show", "foo"])
+    assert result.exit_code == 0
+    assert "api" in result.stdout
+    assert "webhook" in result.stdout
+
+
+def test_show_json_includes_tags(projects, make_project) -> None:
+    from keel.manifest import load_project_manifest, save_project_manifest
+
+    proj = make_project("foo")
+    m = load_project_manifest(proj / "project.toml")
+    m.project.tags = ["api"]
+    save_project_manifest(proj / "project.toml", m)
+
+    result = runner.invoke(app, ["show", "foo", "--json"])
+    data = json.loads(result.stdout)
+    assert data["tags"] == ["api"]
+
+
+def test_show_no_tags_row_when_empty(projects, make_project) -> None:
+    make_project("foo")
+    result = runner.invoke(app, ["show", "foo"])
+    assert result.exit_code == 0
+    assert "Tags" not in result.stdout
+
+
+def test_show_json_tags_empty(projects, make_project) -> None:
+    make_project("foo")
+    result = runner.invoke(app, ["show", "foo", "--json"])
+    data = json.loads(result.stdout)
+    assert data["tags"] == []

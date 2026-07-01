@@ -123,7 +123,7 @@ Expected: 83 PASS.
 - [ ] **Step 4: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/commands/list.py keel/src/keel/commands/list_cmd.py keel/src/keel/app.py
+git add keel/src/keel/commands/list.py keel/src/keel/commands/list_cmd.py keel/src/keel/app.py
 git commit -m "refactor(keel): rename commands/list_cmd.py to list.py"
 ```
 
@@ -235,7 +235,7 @@ Expected: 11 PASS (8 existing + 3 new).
 - [ ] **Step 5: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/markdown_edit.py keel/tests/test_markdown_edit.py
+git add keel/src/keel/markdown_edit.py keel/tests/test_markdown_edit.py
 git commit -m "fix(keel): normalize replace_section blank-line behavior to be idempotent"
 ```
 
@@ -366,7 +366,7 @@ Expected: 13 PASS (8 existing + 5 new).
 - [ ] **Step 5: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/workspace.py keel/tests/test_workspace.py
+git add keel/src/keel/workspace.py keel/tests/test_workspace.py
 git commit -m "feat(keel): add resolve_scope_or_fail and existence checks for scopes"
 ```
 
@@ -491,7 +491,7 @@ Expected: 17 PASS (8 + 9 = 17 new tests on top of existing).
 - [ ] **Step 5: Commit**
 
 ```bash
-cd ~/projects && git add keel/tests/test_output.py keel/tests/test_prompts.py keel/tests/commands/test_slugify.py
+git add keel/tests/test_output.py keel/tests/test_prompts.py keel/tests/commands/test_slugify.py
 git commit -m "test(keel): close Plan 1 test gaps (warn, confirm_destructive, _slugify)"
 ```
 
@@ -551,7 +551,7 @@ Expected: 100 PASS (83 + 17 from Task 1.4).
 - [ ] **Step 6: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/commands/deliverable/ keel/tests/commands/deliverable/ keel/src/keel/app.py
+git add keel/src/keel/commands/deliverable/ keel/tests/commands/deliverable/ keel/src/keel/app.py
 git commit -m "feat(keel): scaffold deliverable command group"
 ```
 
@@ -623,7 +623,7 @@ Expected: pytest collects fine; no test failures.
 - [ ] **Step 3: Commit**
 
 ```bash
-cd ~/projects && git add keel/tests/conftest.py
+git add keel/tests/conftest.py
 git commit -m "test(keel): add make_deliverable fixture for deliverable commands"
 ```
 
@@ -837,7 +837,7 @@ Expected: 4 PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/commands/deliverable/add.py keel/src/keel/commands/deliverable/__init__.py keel/tests/commands/deliverable/test_add.py
+git add keel/src/keel/commands/deliverable/add.py keel/src/keel/commands/deliverable/__init__.py keel/tests/commands/deliverable/test_add.py
 git commit -m "feat(keel): implement 'deliverable add' basic flow"
 ```
 
@@ -934,7 +934,7 @@ Expected: 7 PASS (4 + 3).
 - [ ] **Step 5: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/commands/deliverable/add.py keel/tests/commands/deliverable/test_add.py
+git add keel/src/keel/commands/deliverable/add.py keel/tests/commands/deliverable/test_add.py
 git commit -m "feat(keel): 'deliverable add' AST-edits parent CLAUDE.md and design.md"
 ```
 
@@ -1036,7 +1036,7 @@ Expected: 8 PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/_templates/claude_md.j2 keel/src/keel/commands/deliverable/add.py keel/tests/commands/deliverable/test_add.py
+git add keel/src/keel/_templates/claude_md.j2 keel/src/keel/commands/deliverable/add.py keel/tests/commands/deliverable/test_add.py
 git commit -m "feat(keel): 'deliverable add' updates sibling deliverable CLAUDE.md files"
 ```
 
@@ -1201,7 +1201,7 @@ Run: `uv run --extra dev pytest tests/commands/deliverable/test_list.py -v`
 - [ ] **Step 6: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/commands/deliverable/list.py keel/src/keel/commands/deliverable/__init__.py keel/tests/commands/deliverable/test_list.py
+git add keel/src/keel/commands/deliverable/list.py keel/src/keel/commands/deliverable/__init__.py keel/tests/commands/deliverable/test_list.py
 git commit -m "feat(keel): implement 'deliverable list'"
 ```
 
@@ -1390,7 +1390,7 @@ Expected: 4 PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/commands/deliverable/rm.py keel/src/keel/commands/deliverable/__init__.py keel/tests/commands/deliverable/test_rm.py
+git add keel/src/keel/commands/deliverable/rm.py keel/src/keel/commands/deliverable/__init__.py keel/tests/commands/deliverable/test_rm.py
 git commit -m "feat(keel): implement 'deliverable rm' with parent and sibling cleanup"
 ```
 
@@ -1468,7 +1468,7 @@ Expected: 5 PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/commands/deliverable/rm.py keel/tests/commands/deliverable/test_rm.py
+git add keel/src/keel/commands/deliverable/rm.py keel/tests/commands/deliverable/test_rm.py
 git commit -m "feat(keel): 'deliverable rm' removes worktree when present"
 ```
 
@@ -1606,7 +1606,7 @@ Expected: 11 PASS (8 + 3).
 - [ ] **Step 5: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/commands/deliverable/add.py keel/tests/commands/deliverable/test_add.py
+git add keel/src/keel/commands/deliverable/add.py keel/tests/commands/deliverable/test_add.py
 git commit -m "feat(keel): 'deliverable add --repo' and '--shared' modes"
 ```
 
@@ -1836,7 +1836,7 @@ Expected: 4 PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/commands/deliverable/rename.py keel/src/keel/commands/deliverable/__init__.py keel/tests/commands/deliverable/test_rename.py
+git add keel/src/keel/commands/deliverable/rename.py keel/src/keel/commands/deliverable/__init__.py keel/tests/commands/deliverable/test_rename.py
 git commit -m "feat(keel): implement 'deliverable rename' with parent + sibling updates"
 ```
 
@@ -1894,7 +1894,7 @@ Expected: previous count + 0 (no new tests).
 - [ ] **Step 5: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/commands/decision/ keel/tests/commands/decision/ keel/src/keel/app.py
+git add keel/src/keel/commands/decision/ keel/tests/commands/decision/ keel/src/keel/app.py
 git commit -m "feat(keel): scaffold decision command group"
 ```
 
@@ -2078,7 +2078,7 @@ Expected: 4 PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/commands/decision/new.py keel/src/keel/commands/decision/__init__.py keel/tests/commands/decision/test_new.py
+git add keel/src/keel/commands/decision/new.py keel/src/keel/commands/decision/__init__.py keel/tests/commands/decision/test_new.py
 git commit -m "feat(keel): implement 'decision new' with auto-scope from CWD"
 ```
 
@@ -2155,7 +2155,7 @@ Expected: 5 PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/commands/decision/new.py keel/tests/commands/decision/test_new.py
+git add keel/src/keel/commands/decision/new.py keel/tests/commands/decision/test_new.py
 git commit -m "feat(keel): 'decision new --supersedes' marks old decision and links forward"
 ```
 
@@ -2348,7 +2348,7 @@ Expected: 3 PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/commands/decision/list.py keel/src/keel/commands/decision/__init__.py keel/tests/commands/decision/test_list.py
+git add keel/src/keel/commands/decision/list.py keel/src/keel/commands/decision/__init__.py keel/tests/commands/decision/test_list.py
 git commit -m "feat(keel): implement 'decision list'"
 ```
 
@@ -2510,7 +2510,7 @@ app.command(name="show")(cmd_show)
 - [ ] **Step 6: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/commands/decision/show.py keel/src/keel/commands/decision/__init__.py keel/tests/commands/decision/test_show.py
+git add keel/src/keel/commands/decision/show.py keel/src/keel/commands/decision/__init__.py keel/tests/commands/decision/test_show.py
 git commit -m "feat(keel): implement 'decision show' (rendered, raw, json)"
 ```
 
@@ -2623,7 +2623,7 @@ app.command(name="rm")(cmd_rm)
 - [ ] **Step 6: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/commands/decision/rm.py keel/src/keel/commands/decision/__init__.py keel/tests/commands/decision/test_rm.py
+git add keel/src/keel/commands/decision/rm.py keel/src/keel/commands/decision/__init__.py keel/tests/commands/decision/test_rm.py
 git commit -m "feat(keel): implement 'decision rm'"
 ```
 
@@ -2770,7 +2770,7 @@ app.command(name="phase")(cmd_phase)
 - [ ] **Step 6: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/commands/phase.py keel/src/keel/app.py keel/tests/commands/test_phase.py
+git add keel/src/keel/commands/phase.py keel/src/keel/app.py keel/tests/commands/test_phase.py
 git commit -m "feat(keel): implement 'phase' show mode"
 ```
 
@@ -2913,7 +2913,7 @@ Expected: 7 PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/commands/phase.py keel/tests/commands/test_phase.py
+git add keel/src/keel/commands/phase.py keel/tests/commands/test_phase.py
 git commit -m "feat(keel): 'phase' forward/backward transitions with auto decision file"
 ```
 
@@ -2954,7 +2954,7 @@ Expected: 9 PASS.
 - [ ] **Step 3: Commit**
 
 ```bash
-cd ~/projects && git add keel/tests/commands/test_phase.py
+git add keel/tests/commands/test_phase.py
 git commit -m "test(keel): cover 'phase --next' shortcut"
 ```
 
@@ -2990,7 +2990,7 @@ Expected: all commands succeed; deliverable list shows 2; decision created and s
 - [ ] **Step 3: Tag the milestone**
 
 ```bash
-git -C ~/projects tag keel-plan-2
+git -C keel tag keel-plan-2
 ```
 
 - [ ] **Step 4: Skip the workspace .phase advance**

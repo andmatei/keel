@@ -264,11 +264,11 @@ def test_new_fires_pre_and_post_subscribers(projects, monkeypatch) -> None:
     try:
         fired: list[str] = []
 
-        @subscribes_to("pre-new")
+        @subscribes_to("project.create.pre")
         def pre(event: HookEvent, *, out) -> None:
             fired.append(event.full_name)
 
-        @subscribes_to("post-new")
+        @subscribes_to("project.create.post")
         def post(event: HookEvent, *, out) -> None:
             fired.append(event.full_name)
             # Post payload contains 'path'
@@ -278,7 +278,7 @@ def test_new_fires_pre_and_post_subscribers(projects, monkeypatch) -> None:
         monkeypatch.chdir(projects)
         result = runner.invoke(app, ["new", "foo", "-d", "test", "--no-worktree", "-y"])
         assert result.exit_code == 0
-        assert fired == ["pre-new", "post-new"]
+        assert fired == ["project.create.pre", "project.create.post"]
     finally:
         _clear_registry()
         register_builtin_listeners()
@@ -297,7 +297,7 @@ def test_new_pre_hook_can_block(projects, monkeypatch) -> None:
     register_builtin_listeners()
     try:
 
-        @subscribes_to("pre-new")
+        @subscribes_to("project.create.pre")
         def block(event: HookEvent, *, out) -> None:
             raise HookAborted("not allowed")
 
@@ -326,7 +326,7 @@ def test_new_no_verify_bypasses_pre_hook(projects, monkeypatch) -> None:
     register_builtin_listeners()
     try:
 
-        @subscribes_to("pre-new")
+        @subscribes_to("project.create.pre")
         def block(event: HookEvent, *, out) -> None:
             raise HookAborted("not allowed")
 
@@ -340,3 +340,28 @@ def test_new_no_verify_bypasses_pre_hook(projects, monkeypatch) -> None:
     finally:
         _clear_registry()
         register_builtin_listeners()
+
+
+def test_new_with_tags(projects) -> None:
+    result = runner.invoke(
+        app,
+        ["new", "foo", "-d", "test", "--no-worktree", "-y", "--tag", "api", "--tag", "webhook"],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.stderr
+    m = load_project_manifest(projects / "foo" / "project.toml")
+    assert set(m.project.tags) == {"api", "webhook"}
+
+
+def test_new_with_invalid_tag_fails(projects) -> None:
+    result = runner.invoke(
+        app,
+        ["new", "foo", "-d", "test", "--no-worktree", "-y", "--tag", "bad tag!"],
+    )
+    assert result.exit_code != 0
+
+
+def test_new_without_tags_has_empty_list(projects) -> None:
+    runner.invoke(app, ["new", "foo", "-d", "test", "--no-worktree", "-y"])
+    m = load_project_manifest(projects / "foo" / "project.toml")
+    assert m.project.tags == []

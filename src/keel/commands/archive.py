@@ -13,7 +13,7 @@ from keel.api import ErrorCode, OpLog, Output, confirm_destructive
 from keel.hooks import HookAborted, hook_event, hookable
 
 
-@hookable("archive")
+@hookable("project.archive")
 def cmd_archive(
     ctx: typer.Context,
     name: str | None = typer.Argument(
@@ -21,7 +21,7 @@ def cmd_archive(
     ),
     force: bool = typer.Option(False, "--force", help="Allow archive even if worktrees are dirty."),
     yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompt."),
-    no_verify: bool = typer.Option(False, "--no-verify", help="Skip pre-archive hooks."),
+    no_verify: bool = typer.Option(False, "--no-verify", help="Skip project.archive.pre hooks."),
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Print intended operations and exit; write nothing."
     ),
@@ -65,7 +65,7 @@ def cmd_archive(
     # Fire pre-archive, do the work, fire post-archive.
     try:
         with hook_event(
-            "archive",
+            "project.archive",
             project=project,
             deliverable=None,
             payload={},
@@ -109,7 +109,7 @@ def cmd_archive(
             )
     except HookAborted as e:
         out.fail(
-            f"archive aborted: {e} (use --no-verify to override)",
+            f"project.archive aborted: {e} (use --no-verify to override)",
             code=ErrorCode.PREFLIGHT_BLOCKED,
         )
 

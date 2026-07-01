@@ -14,6 +14,7 @@ GROUPS = [
     "keel.ticket_providers",
     "keel.event_listeners",
     "keel.lifecycles",
+    "keel.daemons",
 ]
 
 

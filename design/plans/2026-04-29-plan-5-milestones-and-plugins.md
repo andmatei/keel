@@ -185,7 +185,7 @@ separate, developed-and-maintained package; same for any future provider.
 - [ ] **Step 2: Commit**
 
 ```bash
-cd ~/projects && git add keel/design/decisions/2026-04-29-plan-5-plugin-model.md
+git add keel/design/decisions/2026-04-29-plan-5-plugin-model.md
 git commit -m "docs(keel): record decision — pure-plugin ticketing, no bundled providers"
 ```
 
@@ -286,7 +286,7 @@ In `src/keel/api.py`, add to imports + `__all__`:
 - [ ] **Step 6: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/lifecycle.py keel/src/keel/api.py keel/tests/test_lifecycle.py
+git add keel/src/keel/lifecycle.py keel/src/keel/api.py keel/tests/test_lifecycle.py
 git commit -m "feat(keel): add MILESTONE_STATES/TASK_STATES to lifecycle module"
 ```
 
@@ -493,7 +493,7 @@ Tests for both in `tests/test_workspace.py` (parallel to the existing `manifest_
 - [ ] **Step 7: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/manifest.py keel/src/keel/workspace.py keel/src/keel/api.py keel/tests/test_manifest.py keel/tests/test_workspace.py
+git add keel/src/keel/manifest.py keel/src/keel/workspace.py keel/src/keel/api.py keel/tests/test_manifest.py keel/tests/test_workspace.py
 git commit -m "feat(keel): add Milestone/Task/MilestonesManifest models + workspace helpers"
 ```
 
@@ -731,7 +731,7 @@ In `src/keel/api.py`, add `validate_dag`, `GraphError`, `ready_tasks`, `blocked_
 - [ ] **Step 6: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/milestones.py keel/src/keel/api.py keel/tests/test_milestones_graph.py
+git add keel/src/keel/milestones.py keel/src/keel/api.py keel/tests/test_milestones_graph.py
 git commit -m "feat(keel): add DAG validation and ready/blocked/topo helpers"
 ```
 

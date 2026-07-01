@@ -103,3 +103,26 @@ def test_lifecycle_unknown_state_raises_on_successors() -> None:
     lc = _minimal_lifecycle()
     with pytest.raises(KeyError):
         lc.successors("ghost")
+
+
+def test_lifecycle_rejects_uppercase_state_name() -> None:
+    with pytest.raises(ValidationError, match="state name"):
+        _minimal_lifecycle(states={"Active": {}, "b": {}, "c": {}})
+
+
+def test_lifecycle_rejects_state_name_with_spaces() -> None:
+    with pytest.raises(ValidationError, match="state name"):
+        _minimal_lifecycle(states={"in review": {}, "b": {}, "c": {}})
+
+
+def test_lifecycle_accepts_kebab_case_state_name() -> None:
+    lc = Lifecycle.model_validate(
+        {
+            "name": "test",
+            "initial": "in-review",
+            "terminal": ["done"],
+            "states": {"in-review": {}, "done": {}},
+            "transitions": {"in-review": ["done"]},
+        }
+    )
+    assert "in-review" in lc.states

@@ -87,7 +87,7 @@ def test_rename_fires_post_rename(projects, make_project, monkeypatch) -> None:
     try:
         fired: list[dict] = []
 
-        @subscribes_to("post-rename")
+        @subscribes_to("project.rename.post")
         def post(event: HookEvent, *, out) -> None:
             fired.append(dict(event.payload))
 

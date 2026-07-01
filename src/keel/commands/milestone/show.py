@@ -16,7 +16,7 @@ def cmd_show(
     project: str | None = typer.Option(None, "--project", "-p", help="Project name."),
     json_mode: bool = typer.Option(False, "--json", help="Emit machine-readable JSON to stdout."),
 ) -> None:
-    """Show a milestone's metadata, status, fan-out, and task breakdown."""
+    """Show a milestone's metadata, status, and task breakdown."""
     out = Output.from_context(ctx, json_mode=json_mode)
 
     scope = resolve_cli_scope(project, deliverable, out=out)
@@ -44,12 +44,11 @@ def cmd_show(
     ]
     if milestone.description:
         lines.append(f"Description: {milestone.description}")
-    if milestone.fan_out:
-        lines.append(f"Fan-out: {', '.join(milestone.fan_out)}")
     if milestone.parent:
         lines.append(f"Parent: {milestone.parent}")
-    if milestone.ticket_id:
-        lines.append(f"Ticket: {milestone.ticket_id}")
+    if milestone.tickets:
+        for prov, tid in milestone.tickets.items():
+            lines.append(f"Ticket ({prov}): {tid}")
     lines.append(f"Tasks: {len(tasks)}")
     if by_status:
         breakdown = ", ".join(f"{k}={v}" for k, v in sorted(by_status.items()))

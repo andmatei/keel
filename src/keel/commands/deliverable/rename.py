@@ -18,15 +18,17 @@ from keel.api import (
     resolve_cli_scope,
     save_project_manifest,
 )
+from keel.hooks import HookAborted, hook_event, hookable
 from keel.markdown_edit import insert_under_heading, remove_bullet_under_heading
 
 
+@hookable("deliverable.rename")
 def cmd_rename(
     ctx: typer.Context,
     old: str = typer.Argument(...),
     new: str = typer.Argument(...),
     project: str | None = typer.Option(
-        None, "--project", "-p", help="Parent project. Auto-detected from CWD if omitted."
+        None, "--project", "-p", help="Project name. Auto-detected from CWD if omitted."
     ),
     rename_branch: bool = typer.Option(
         True,
@@ -36,6 +38,7 @@ def cmd_rename(
     yes: bool = typer.Option(
         False, "-y", "--yes", help="Skip interactive prompts (description, etc.)."
     ),
+    no_verify: bool = typer.Option(False, "--no-verify", help="Skip deliverable.rename.pre hooks."),
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Print intended operations and exit; write nothing."
     ),
@@ -65,61 +68,76 @@ def cmd_rename(
         out.info(log.format_summary())
         return
 
-    # 1a. If a worktree exists, move it properly via git first
-    old_code = old_path / "code"
-    if old_code.is_dir():
-        new_path.mkdir(parents=True, exist_ok=True)
-        git_ops.move_worktree(old_code, new_path / "code")
+    try:
+        with hook_event(
+            "deliverable.rename",
+            project=project,
+            deliverable=old,
+            payload={"old_name": old, "new_name": new, "project": project},
+            positional_args=(old, new),
+            out=out,
+            no_verify=no_verify,
+        ):
+            # 1a. If a worktree exists, move it properly via git first
+            old_code = old_path / "code"
+            if old_code.is_dir():
+                new_path.mkdir(parents=True, exist_ok=True)
+                git_ops.move_worktree(old_code, new_path / "code")
 
-    # 1b. Move the design dir (and any other contents)
-    new_path.mkdir(parents=True, exist_ok=True)
-    for child in list(old_path.iterdir()):
-        shutil.move(str(child), str(new_path / child.name))
+            # 1b. Move the design dir (and any other contents)
+            new_path.mkdir(parents=True, exist_ok=True)
+            for child in list(old_path.iterdir()):
+                shutil.move(str(child), str(new_path / child.name))
 
-    # 1c. rmdir the now-empty old path
-    if old_path.exists() and not any(old_path.iterdir()):
-        old_path.rmdir()
+            # 1c. rmdir the now-empty old path
+            if old_path.exists() and not any(old_path.iterdir()):
+                old_path.rmdir()
 
-    # 2. Update manifest's `name`
-    manifest_path = new_scope.manifest_path
-    m = load_project_manifest(manifest_path)
-    new_manifest = ProjectManifest(
-        project=ProjectMeta(
-            name=new,
-            description=m.project.description,
-            created=m.project.created,
-            lifecycle=m.project.lifecycle,
-            shared_worktree=m.project.shared_worktree,
-        ),
-        repos=m.repos,
-    )
-    save_project_manifest(manifest_path, new_manifest)
+            # 2. Update manifest's `name`
+            manifest_path = new_scope.manifest_path
+            m = load_project_manifest(manifest_path)
+            new_manifest = ProjectManifest(
+                project=ProjectMeta(
+                    name=new,
+                    description=m.project.description,
+                    created=m.project.created,
+                    lifecycle=m.project.lifecycle,
+                    shared_worktree=m.project.shared_worktree,
+                ),
+                repos=m.repos,
+            )
+            save_project_manifest(manifest_path, new_manifest)
 
-    # 3. Update parent design.md references (the source of truth post-0.0.3).
-    description = m.project.description
-    parent_scope = workspace.Scope(project=project, deliverable=None)
-    parent_design = parent_scope.design_md_path
-    if parent_design.is_file():
-        text = remove_bullet_under_heading(
-            parent_design.read_text(), "Deliverables", f"- **{old}**:"
+            # 3. Update parent design.md references (the source of truth post-0.0.3).
+            description = m.project.description
+            parent_scope = workspace.Scope(project=project, deliverable=None)
+            parent_design = parent_scope.design_md_path
+            if parent_design.is_file():
+                text = remove_bullet_under_heading(
+                    parent_design.read_text(), "Deliverables", f"- **{old}**:"
+                )
+                text = insert_under_heading(
+                    text,
+                    "Deliverables",
+                    f"- **{new}**: {description}. See [design](deliverables/{new}/design.md).\n",
+                )
+                parent_design.write_text(text)
+
+            # 4. (Optional) branch rename
+            code_dir = new_path / "code"
+            if code_dir.is_dir() and rename_branch and m.repos:
+                old_branch = m.repos[0].branch_prefix
+                if old_branch and old_branch.endswith(f"-{old}"):
+                    new_branch = old_branch[: -len(f"-{old}")] + f"-{new}"
+                    try:
+                        git_ops.rename_branch(code_dir, old=old_branch, new=new_branch)
+                    except git_ops.GitError as e:
+                        out.warn(f"branch rename failed: {e}")
+    except HookAborted as e:
+        out.fail(
+            f"deliverable.rename aborted: {e} (use --no-verify to override)",
+            code=ErrorCode.PREFLIGHT_BLOCKED,
         )
-        text = insert_under_heading(
-            text,
-            "Deliverables",
-            f"- **{new}**: {description}. See [design](deliverables/{new}/design.md).\n",
-        )
-        parent_design.write_text(text)
-
-    # 4. (Optional) branch rename
-    code_dir = new_path / "code"
-    if code_dir.is_dir() and rename_branch and m.repos:
-        old_branch = m.repos[0].branch_prefix
-        if old_branch and old_branch.endswith(f"-{old}"):
-            new_branch = old_branch[: -len(f"-{old}")] + f"-{new}"
-            try:
-                git_ops.rename_branch(code_dir, old=old_branch, new=new_branch)
-            except git_ops.GitError as e:
-                out.warn(f"branch rename failed: {e}")
 
     out.result(
         {"old": str(old_path), "new": str(new_path)},
