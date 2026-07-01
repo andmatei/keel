@@ -15,6 +15,15 @@ schema as projects (no more `deliverable.toml`). See
 `plans/2026-05-05-plan-8-data-model-redesign.md` for the rollout plan.
 The structural sections below describe the post-0.0.3 layout.
 
+0.0.4 adds user hooks (Plan 9): commands opt into pre/post events via
+`@hookable` + `hook_event()`. User-defined hook scripts live under
+`.keel/hooks/` at workspace or project level.
+
+0.0.5 adds tags (Plan 10): free-form labels on projects and deliverables
+for categorization and filtering. `keel tag {add,rm,list}` manages them;
+`keel list`, `keel deliverable list`, and `keel show` display and filter
+by them; `keel new --tag` sets them at creation time.
+
 ---
 
 ## 1. Summary
@@ -68,7 +77,7 @@ structural changes versus the current Bash version:
 |---|---|---|
 | `--help` / `-h` | every command | Typer-generated |
 | `--json` | commands with readable output (`list`, `show`, `phase`, `validate`, decisions, deliverable, code) | structured output, suppresses log lines (implies `-q`) |
-| `--dry-run` | mutating commands (`new`, `deliverable add/rm/rename`, `decision new/rm`, `phase set`, `code init/add/rm`, `archive`, `rename`, `migrate`) | print intended actions + diffs, write nothing. Read-only commands (`list`, `show`, `validate`, `decision list/show`, `code list/status`, `design export`) don't need it — running them doesn't mutate state |
+| `--dry-run` | mutating commands (`new`, `deliverable add/rm/rename`, `decision new/rm`, `phase set`, `code init/add/rm`, `archive`, `rename`) | print intended actions + diffs, write nothing. Read-only commands (`list`, `show`, `validate`, `decision list/show`, `code list/status`, `design export`) don't need it — running them doesn't mutate state |
 | `--yes` / `-y` | destructive commands (`rm`, `rename`, anything that overwrites) | skip confirmation prompt |
 | `--quiet` / `-q` | global | suppress info logs, errors still go to stderr |
 | `--verbose` / `-v` | global | extra debug logs to stderr |
@@ -194,6 +203,7 @@ at the deliverable level it produces just that deliverable.
 name = "api-ai-agents"
 description = "AI agents for the API platform"
 created = "2026-04-15"
+tags = ["api", "research"]
 
 [[repos]]
 remote = "git@github.com:10gen/mms.git"   # canonical clone URL
@@ -214,6 +224,7 @@ description = "Interface for IPA validation skills"
 created = "2026-04-20"
 lifecycle = "default"
 shared_worktree = false   # true means uses parent's worktree, no own [[repos]]
+tags = ["api"]
 
 [[repos]]
 remote = "git@github.com:10gen/ipa.git"
@@ -221,10 +232,6 @@ local_hint = "~/ipa"
 worktree = "code"
 branch_prefix = "andrei/api-ai-agents-ipa-skills"
 ```
-
-The legacy `[deliverable]` block (in `deliverable.toml`) is recognized for
-read-only conversion via `keel migrate` and slated for removal in a future
-0.0.x release.
 
 ### 5.3 Schema rules
 
@@ -234,8 +241,14 @@ read-only conversion via `keel migrate` and slated for removal in a future
   deliverable.
 - The `branch_prefix` is the basis for branch naming when `code add` creates
   a new worktree.
+- `tags` defaults to `[]` — existing manifests without it load fine.
+  Validated: lowercase alphanumeric + hyphens, 1–50 chars, no
+  leading/trailing hyphens. Lowercased and deduplicated on write.
 - `validate` checks: TOML parses, schema matches, declared worktrees exist on
   disk, branches start with the declared `branch_prefix`.
+- Lifecycle state names must match `^[a-z][a-z0-9]*(-[a-z0-9]+)*$` — lowercase
+  alphanumeric + hyphens, must start with a letter. Both single words (`scoping`)
+  and kebab-case (`in-review`) are valid. Enforced by Pydantic validator.
 
 ### 5.4 README regeneration
 
@@ -270,6 +283,10 @@ project decision list
 project decision show <slug>
 project decision rm <slug>
 
+project tag add <tag> [<tag>...]
+project tag rm <tag> [<tag>...]
+project tag list
+
 project design export
 
 project code list [name]
@@ -295,7 +312,7 @@ project code rm [name] --repo URL
 
 | Aspect | Spec |
 |---|---|
-| Args | positional `<name>` (slugified), `-d/--description TEXT` (required, prompted on TTY if missing), `-r/--repo PATH` (repeatable), `--no-worktree`, `--dry-run`, `-y/--yes` |
+| Args | positional `<name>` (slugified), `-d/--description TEXT` (required, prompted on TTY if missing), `-r/--repo PATH` (repeatable), `--tag TAG` (repeatable), `--no-worktree`, `--dry-run`, `-y/--yes` |
 | Auto-detect | n/a (creates new project) |
 | Side effects | mkdir `~/projects/<name>/{decisions,.keel}`; write `project.toml`, `README.md` (generated), `scope.md`, `design.md`; `.keel/phase` set to lifecycle's initial state; `.keel/lifecycle.lock.toml` snapshot; for each `--repo`: append `[[repos]]` to manifest, then `code init` materializes worktrees |
 | Conflict | hard fail if `~/projects/<name>` exists. No `--force` here (too risky for `new`) |
@@ -335,10 +352,10 @@ project code rm [name] --repo URL
 
 | Aspect | Spec |
 |---|---|
-| Args | `--json` |
+| Args | `--tag TAG` (repeatable, AND semantics), `--json` |
 | Auto-detect | project from CWD |
-| Default output | table: name, phase, has-code, description |
-| `--json` | `{"deliverables": [{"name": "...", "phase": "...", "description": "...", "shared_worktree": bool, "repos": [...]}]}` |
+| Default output | table: name, phase, shared, tags, description |
+| `--json` | `{"deliverables": [{"name": "...", "phase": "...", "description": "...", "shared_worktree": bool, "tags": [...], "repos": [...]}]}` |
 
 ### 7.6 `project decision new <title>`
 
@@ -395,16 +412,16 @@ project code rm [name] --repo URL
 
 | Aspect | Spec |
 |---|---|
-| Args | `--phase PHASE`, `--deliverables-only`, `--json` |
-| Default output | tree: project name + phase + deliverable count, indented children with their phases. Does NOT run `git status` (slow) |
-| `--json` | `{"projects": [{"name": "...", "phase": "...", "description": "...", "repos": [...], "deliverables": [...]}]}` |
+| Args | `--phase PHASE`, `--tag TAG` (repeatable, AND semantics), `--active`, `--deliverables-only`, `--json` |
+| Default output | tree: project name + phase + tags (colored) + deliverable count + active milestone/task counts. Does NOT run `git status` (slow) |
+| `--json` | `{"projects": [{"name": "...", "phase": "...", "description": "...", "tags": [...], "deliverable_count": N, "active_milestones": N, "active_tasks": N}]}` |
 
 ### 7.12 `project show [name]`
 
 | Aspect | Spec |
 |---|---|
 | Args | positional `[name]` (auto-detected), `-D/--deliverable NAME`, `--json` |
-| Default output | structured "project card": name + description, phase, manifest repos (paths/branches), design files (mtime), decision count + last 3, deliverable list with phases, worktree paths/branches (no git status — `code status` covers it) |
+| Default output | structured "project card": name + description, phase, tags (colored, omitted when empty), manifest repos (paths/branches), design files (mtime), decision count + last 3, deliverable list with phases, worktree paths/branches (no git status — `code status` covers it) |
 | `--json` | flat object with all the above |
 
 ### 7.13 `project validate [name]`
@@ -490,34 +507,53 @@ Wraps Typer's built-in completion installer. Prints the completion script to
 stdout (redirect to file), or with `--install` writes to the canonical
 location for the chosen shell.
 
-### 7.23 `project --version`
+### 7.23 `project tag add <tag> [<tag>...]`
+
+| Aspect | Spec |
+|---|---|
+| Args | positional `<tag>` (repeatable), `--project`/`-p`, `--deliverable`, `--no-verify`, `--json` |
+| Auto-detect | scope from CWD |
+| Side effects | appends tags to manifest's `tags` list; saves manifest |
+| Idempotent | adding an already-present tag is a no-op (no error) |
+| Hookable | `pre-tag-add` / `post-tag-add` (post payload: `tags_added` = only actually new tags) |
+| Output | current tag list; `--json`: `{"tags": [...], "added": [...]}` |
+
+### 7.24 `project tag rm <tag> [<tag>...]`
+
+| Aspect | Spec |
+|---|---|
+| Args | positional `<tag>` (repeatable), `--project`/`-p`, `--deliverable`, `--no-verify`, `--json` |
+| Auto-detect | scope from CWD |
+| Side effects | removes tags from manifest; warns (does not error) if a tag was not present |
+| Hookable | `pre-tag-rm` / `post-tag-rm` (post payload: `tags_removed` = only actually removed tags) |
+| Output | current tag list; `--json`: `{"tags": [...], "removed": [...]}` |
+
+### 7.25 `project tag list`
+
+| Aspect | Spec |
+|---|---|
+| Args | `--project`/`-p`, `--deliverable`, `--json` |
+| Auto-detect | scope from CWD; falls back to global mode if no project detected |
+| Scoped mode | flat list of the unit's tags |
+| Global mode | grouped tree: each tag with its member projects and deliverables, colored, sorted alphabetically |
+| Not hookable | read-only, no side effects |
+| `--json` (scoped) | `{"tags": [...]}` |
+| `--json` (global) | `{"tags": {"<tag>": {"projects": [...], "deliverables": [{"project": "...", "name": "..."}]}}}` |
+
+### 7.26 `project --version`
 
 Reads version from `pyproject.toml` via `importlib.metadata`.
 
 ---
 
-## 8. Migration plan
+## 8. Migration plan (historical)
 
-Existing projects under `~/projects/` may need migration in two phases (the
-`keel migrate` command runs both as needed; idempotent on already-migrated
-units):
-
-1. **Bash CLI → manifest** (legacy detection via `design/CLAUDE.md`): the
-   migrator reads the legacy `## Code` and `## Deliverables` sections,
-   plus on-disk worktrees, and writes equivalent `project.toml` files.
-2. **Legacy layout → new layout** (Plan 8 / 0.0.3): manifests move from
-   `<unit>/design/project.toml` to `<unit>/project.toml`; phase moves from
-   `<unit>/design/.phase` to `<unit>/.keel/phase`; `.keel/lifecycle.lock.toml`
-   is created; `decisions/`/`plans/`/`specs/` (and `scope.md`/`design.md`)
-   move up out of `design/`; `<unit>/README.md` is generated; the old
-   `design/` subdir is removed.
-3. **Verify**: `keel validate --strict` should pass on every project after
-   migration. Fixups (e.g., orphaned worktree references) handled manually.
-
-Migration is **dry-run by default**: `keel migrate` prints what it would
-write; `keel migrate --apply` actually writes. The Bash-CLI detection path
-is kept indefinitely so a workspace abandoned at v0.0.x can still be
-brought forward.
+`keel migrate` was removed in 0.0.5. The one-time Bash CLI → TOML and
+layout restructure migrations are complete for all active workspaces.
+During `0.0.x` alpha, breaking schema changes are handled directly —
+Pydantic's `extra="forbid"` provides clear errors if a manifest doesn't
+match the expected schema. A proper migration framework may be revisited
+post-1.0 if needed. See `decisions/2026-05-12-discontinue-migrate-and-schema-versioning.md`.
 
 ---
 
@@ -542,10 +578,13 @@ brought forward.
 
 ## 10. Deferred / Parking lot
 
-- **Milestones per deliverable/project**: each milestone tracked with its own
-  worktree (e.g., ship milestone A while iterating on B). Open questions: do
-  milestones have their own design artifacts or just a branch+worktree?
-  Naming/dir layout? Revisit after the base CLI ships.
+- ~~**Milestones per deliverable/project**~~: shipped in 0.0.2.
+  `milestones.toml` lives at the unit root. Milestone fields: `id`, `title`,
+  `description: str | None`, `status`, `parent: str | None` (links sub-milestones
+  back to project-level), `tickets: dict[str, str]` (provider-keyed, e.g.
+  `{"jira": "CLOUDP-123"}`). Tasks: `id`, `milestone`, `title`,
+  `description: str | None`, `status`, `depends_on`, `branch: str | None`,
+  `tickets: dict[str, str]`.
 - **IDL location**: pending clarification of what "idl where to put it"
   meant — possibly Interface Definition Language files, possibly a typo.
 - **`project link/unlink` for Jira/Confluence**: structured external-ref

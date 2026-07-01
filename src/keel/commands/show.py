@@ -15,6 +15,7 @@ from keel.api import (
     ready_tasks,
     resolve_cli_scope,
 )
+from keel.tags import format_tags
 
 
 def _has_only_implicit_default(manifest: MilestonesManifest) -> bool:
@@ -101,6 +102,7 @@ def cmd_show(
             "description": m.project.description,
             "path": str(proj),
             "phase": phase,
+            "tags": list(m.project.tags),
             "repos": [r.model_dump() for r in m.repos],
             "decision_count": decision_count,
             "deliverables": [{"name": n, "phase": p} for n, p in deliverables],
@@ -115,6 +117,8 @@ def cmd_show(
     table.add_row("Description", m.project.description)
     table.add_row("Path", str(proj))
     table.add_row("Phase", phase)
+    if m.project.tags:
+        table.add_row("Tags", format_tags(m.project.tags))
     table.add_row("Decisions", str(decision_count))
     if m.repos:
         table.add_row("Repos", "\n".join(f"{r.worktree}/  ←  {r.remote}" for r in m.repos))

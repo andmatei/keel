@@ -59,12 +59,12 @@ def test_archive_fires_pre_and_post(projects, make_project, monkeypatch) -> None
         fired: list[str] = []
         archived_paths: list[str] = []
 
-        @subscribes_to("pre-archive")
+        @subscribes_to("project.archive.pre")
         def pre(event: HookEvent, *, out) -> None:
             fired.append(event.full_name)
             assert event.project == "foo"
 
-        @subscribes_to("post-archive")
+        @subscribes_to("project.archive.post")
         def post(event: HookEvent, *, out) -> None:
             fired.append(event.full_name)
             archived_paths.append(event.payload["archived_path"])
@@ -74,7 +74,7 @@ def test_archive_fires_pre_and_post(projects, make_project, monkeypatch) -> None
         monkeypatch.chdir(projects)
         result = runner.invoke(app, ["archive", "foo", "-y"])
         assert result.exit_code == 0, result.stderr
-        assert fired == ["pre-archive", "post-archive"]
+        assert fired == ["project.archive.pre", "project.archive.post"]
         assert len(archived_paths) == 1
         assert "foo-" in archived_paths[0]
     finally:

@@ -19,8 +19,10 @@ from keel.api import (
     validate_dag,
     with_provider,
 )
+from keel.hooks import HookAborted, hook_event, hookable
 
 
+@hookable("task.create")
 def cmd_add(
     ctx: typer.Context,
     id: str = typer.Argument(..., help="Task identifier (e.g., 't1', 'set-up')."),
@@ -31,7 +33,7 @@ def cmd_add(
         "-m",
         help="Milestone id. If omitted, an implicit 'default' milestone is auto-created.",
     ),
-    description: str = typer.Option("", "--description", help="Optional description."),
+    description: str | None = typer.Option(None, "--description", help="Optional description."),
     depends_on: str = typer.Option(
         "",
         "--depends-on",
@@ -46,6 +48,7 @@ def cmd_add(
         "--no-push",
         help="Skip pushing to the configured ticketing provider.",
     ),
+    no_verify: bool = typer.Option(False, "--no-verify", help="Skip task.create.pre hooks."),
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Print intended operations and exit; write nothing."
     ),
@@ -113,12 +116,27 @@ def cmd_add(
         out.info(log.format_summary())
         return
 
-    with edit_milestones(scope) as manifest:
-        if target_milestone_id == "default" and not any(
-            m.id == "default" for m in manifest.milestones
+    try:
+        with hook_event(
+            "task.create",
+            project=scope.project,
+            deliverable=scope.deliverable,
+            payload={"id": id, "title": title, "milestone": target_milestone_id, "description": description},
+            positional_args=(id,),
+            out=out,
+            no_verify=no_verify,
         ):
-            manifest.milestones.append(Milestone(id="default", title="Tasks"))
-        manifest.tasks.append(new_task)
+            with edit_milestones(scope) as manifest:
+                if target_milestone_id == "default" and not any(
+                    m.id == "default" for m in manifest.milestones
+                ):
+                    manifest.milestones.append(Milestone(id="default", title="Tasks"))
+                manifest.tasks.append(new_task)
+    except HookAborted as e:
+        out.fail(
+            f"task.create aborted: {e} (use --no-verify to override)",
+            code=ErrorCode.PREFLIGHT_BLOCKED,
+        )
 
     provider = with_provider(scope, no_push=no_push)
     if provider is not None:
@@ -128,7 +146,7 @@ def cmd_add(
             with edit_milestones(scope) as manifest:
                 saved = find_task(manifest, id)
                 if saved is not None:
-                    saved.ticket_id = ticket.id
+                    saved.tickets[provider.name] = ticket.id
 
         safe_push(out, "create_task", _push)
 

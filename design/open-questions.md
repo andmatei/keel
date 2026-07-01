@@ -16,65 +16,54 @@ pattern).
 
 ### High value, low cost
 
-1. **Schema versioning.** No manifest file (`project.toml`,
-   `milestones.toml`, lifecycle TOMLs) declares its schema version. The
-   first breaking change to any of them will silently misread existing
-   files. Options: top-level `schema = 1`, or rely on Pydantic's
-   `extra="forbid"` + clear error messages, or semver-the-wheel and
-   document migrations.
+1. ~~**Schema versioning.**~~ → resolved. `keel migrate` removed; no
+   `schema` field. Pydantic `extra="forbid"` + `0.0.x` alpha versioning
+   covers breaking changes. See `decisions/2026-05-12-discontinue-migrate-and-schema-versioning.md`.
 
-2. **`ticket_id` is a single string.** Assumes one ticketing provider per
-   entity. Renaming to `tickets = { jira = "...", github = "..." }` is
-   cheaper now than later. Plan 8's spec deferred multi-provider, but
-   the field shape is still the deciding factor.
+2. ~~**`ticket_id` is a single string.**~~ → resolved. Replaced with
+   `tickets: dict[str, str] = {}` on both Milestone and Task. Keys are
+   provider names, values are ticket IDs. Breaking change (alpha).
 
-3. **State-name convention across lifecycles.** Default uses lowercase
-   single words (`scoping`, `designing`); examples used kebab-case
-   (`needs-triage`, `in-doc-review`). Document one rule.
+3. ~~**State-name convention across lifecycles.**~~ → resolved. Enforced
+   via Pydantic validator: lowercase alphanumeric + hyphens, must start
+   with a letter (e.g. `scoping`, `in-review`). Both single words and
+   kebab-case are valid.
 
 ### Worth discussing
 
-4. **`Task.branch` assumes git.** Research / non-code projects have no
-   branches. Could move into `extensions.code` to keep `Task` provider-
-   agnostic, or rename to a neutral `work_ref` with semantics defined per
-   lifecycle.
+4. ~~**`Task.branch` assumes git.**~~ → resolved. Kept as optional
+   metadata (`branch: str | None = None`). Non-code projects simply leave
+   it null. No need to move to extensions during alpha.
 
-5. **`Milestone.fan_out` is unvalidated.** Nothing checks that named
-   deliverables have a matching `parent = m.id` milestone. `keel validate`
-   could enforce.
+5. ~~**`Milestone.fan_out` is unvalidated.**~~ → resolved. Removed the
+   field entirely — sub-milestones already link back via `parent`, so
+   `milestone done` now scans deliverables for matching parent links
+   instead of relying on an explicit list. Breaking change (alpha).
 
-6. **`lifecycle = "default"` implicit default.** Plan 8 made this more
-   load-bearing (the resolved lifecycle is now snapshotted into
-   `.keel/lifecycle.lock.toml` at `keel new` time). If `default` ever
-   changes meaning, projects without an explicit field silently drift on
-   *new* projects but lock-file-consistent on existing ones. Question is
-   whether new-project behavior should require an explicit pick.
+6. ~~**`lifecycle = "default"` implicit default.**~~ → resolved. Implicit
+   default is fine — the lock file (`lifecycle.lock.toml`) snapshots the
+   resolved lifecycle at `keel new` time, so existing projects don't
+   drift. No need to require an explicit pick during alpha.
 
 ### Defer
 
-7. **`description = ""` proliferation.** Cosmetic; switch to `Optional`
-   later if it grates.
+7. ~~**`description = ""` proliferation.**~~ → resolved. Changed
+   Milestone.description and Task.description to `str | None = None`.
+   Omitted from TOML when not set. Breaking change (alpha).
 
-8. **`created` is date-only.** Loses timezone/time. Probably fine for
-   humans; revisit only if audit needs surface.
+8. ~~**`created` is date-only.**~~ → resolved. Date-only is fine —
+   projects don't need sub-day precision, and TOML native dates are
+   cleaner than datetime strings. Revisit only if audit requirements
+   surface.
 
 ---
 
 ## 2026-05-11 — Feature ideas surfaced during Plan 9
 
-### Tags for projects and deliverables
+### ~~Tags for projects and deliverables~~ → resolved
 
-User wants to add tags to projects (and deliverables) for categorization
-and filtering on `keel list` / `keel deliverable list`. Likely fits as:
-- `tags: list[str]` field on `ProjectMeta` (TOML: `tags = ["api", "research"]`)
-- `--tag <name>` filter on `keel list` (repeatable, AND semantics)
-- Reasonable defaults: empty list, validator forbids whitespace/special chars
-- Open Qs: hierarchical tags? `keel tag add/rm` management commands? colors
-  for terminal rendering?
-
-Worth its own brainstorm + plan after Plan 9 ships. Small surface, no
-breaking changes expected — `tags` defaults to `[]`, existing projects
-work unchanged.
+Resolved into full spec: `specs/2026-05-11-tags-design.md`. Shipping as
+Plan 10 (keel-cli 0.0.5).
 
 ---
 

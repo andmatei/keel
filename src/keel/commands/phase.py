@@ -33,7 +33,7 @@ def _read_phase(scope: workspace.Scope) -> tuple[str, list[str]]:
     return current, lines[1:]
 
 
-@hookable("phase")
+@hookable("project.phase")
 def cmd_phase(
     ctx: typer.Context,
     phase: str | None = typer.Argument(
@@ -53,7 +53,7 @@ def cmd_phase(
         False, "--no-decision", help="Skip auto-creating a phase-transition decision file."
     ),
     no_verify: bool = typer.Option(
-        False, "--no-verify", help="Skip all pre-phase hooks (in-tree + plugin + user-script)."
+        False, "--no-verify", help="Skip all project.phase.pre hooks (in-tree + plugin + user-script)."
     ),
     yes: bool = typer.Option(False, "-y", "--yes", help="Skip the warning confirmation prompt."),
     list_next: bool = typer.Option(
@@ -159,7 +159,7 @@ def cmd_phase(
     # Fire pre-phase + body + post-phase via hook_event.
     try:
         with hook_event(
-            "phase",
+            "project.phase",
             project=project,
             deliverable=deliverable,
             payload={"from": current, "to": target},

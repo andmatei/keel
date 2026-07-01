@@ -1,0 +1,16 @@
+services:
+  atlas-local:
+    image: mongodb/mongodb-atlas-local
+    container_name: keel-atlas-local
+    ports:
+      - "27117:27017"
+    volumes:
+      - keel-atlas-data:/data/db
+    healthcheck:
+      test: mongosh --quiet --port 27017 --eval "db.runCommand({ping:1})"
+      interval: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  keel-atlas-data:

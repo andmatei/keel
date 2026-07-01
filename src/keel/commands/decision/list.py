@@ -71,7 +71,7 @@ def cmd_list(
         help="Decision scope: a deliverable instead of the project. Auto-detected from CWD.",
     ),
     project: str | None = typer.Option(
-        None, "--project", "-p", help="Parent project. Auto-detected from CWD if omitted."
+        None, "--project", "-p", help="Project name. Auto-detected from CWD if omitted."
     ),
     all_scopes: bool = typer.Option(
         False, "--all", help="Include parent project decisions when at deliverable scope."

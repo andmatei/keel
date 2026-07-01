@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import warnings as _warnings
+import re as _re
 from datetime import date as _date
 from pathlib import Path
 from typing import Any
@@ -61,6 +61,29 @@ class ProjectMeta(BaseModel):
         default=False,
         description="If true, this project does not have its own [[repos]] — it shares a worktree with its parent.",
     )
+    tags: list[str] = Field(default_factory=list)
+
+    @field_validator("tags", mode="before")
+    @classmethod
+    def _normalize_tags(cls, v: list[str]) -> list[str]:
+        _TAG_RE = _re.compile(r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?$")
+        seen: set[str] = set()
+        result: list[str] = []
+        for raw in v:
+            tag = raw.lower().strip()
+            if not tag:
+                raise ValueError("tag must not be empty")
+            if len(tag) > 50:
+                raise ValueError(f"tag too long (max 50 chars): {tag!r}")
+            if not _TAG_RE.match(tag):
+                raise ValueError(
+                    f"tag must be lowercase alphanumeric + hyphens, "
+                    f"start/end with alphanumeric: {tag!r}"
+                )
+            if tag not in seen:
+                seen.add(tag)
+                result.append(tag)
+        return result
 
 
 class ProjectManifest(BaseModel):
@@ -93,17 +116,15 @@ class Milestone(BaseModel):
         min_length=1, description="Stable identifier within the unit (e.g. 'm1', 'foundation')."
     )
     title: str = Field(min_length=1)
-    description: str = ""
+    description: str | None = None
     status: str = Field(default=DEFAULT_MILESTONE_STATE)
-    fan_out: list[str] = Field(
-        default_factory=list, description="Deliverable names this milestone fans out to."
-    )
     parent: str | None = Field(
         default=None,
         description="If this is a sub-milestone, the parent milestone's id at the project level.",
     )
-    ticket_id: str | None = Field(
-        default=None, description="Provider-issued ticket id (e.g., Jira issue key)."
+    tickets: dict[str, str] = Field(
+        default_factory=dict,
+        description="Provider-keyed ticket ids, e.g. {'jira': 'CLOUDP-123', 'github': '42'}.",
     )
 
     @field_validator("status")
@@ -122,7 +143,7 @@ class Task(BaseModel):
     id: str = Field(min_length=1)
     milestone: str = Field(min_length=1, description="The owning milestone's id.")
     title: str = Field(min_length=1)
-    description: str = ""
+    description: str | None = None
     status: str = Field(default=DEFAULT_TASK_STATE)
     depends_on: list[str] = Field(
         default_factory=list, description="Other task ids that must be done before this can start."
@@ -130,8 +151,9 @@ class Task(BaseModel):
     branch: str | None = Field(
         default=None, description="Git branch for this task. Auto-set when started."
     )
-    ticket_id: str | None = Field(
-        default=None, description="Provider-issued ticket id (e.g., Jira issue key)."
+    tickets: dict[str, str] = Field(
+        default_factory=dict,
+        description="Provider-keyed ticket ids, e.g. {'jira': 'CLOUDP-123', 'github': '42'}.",
     )
 
     @field_validator("status")
@@ -149,16 +171,3 @@ class MilestonesManifest(BaseModel):
 
     milestones: list[Milestone] = Field(default_factory=list)
     tasks: list[Task] = Field(default_factory=list)
-
-
-# Deprecated since 0.0.3 — kept temporarily so the legacy-layout migration
-# command can still read old `deliverable.toml` files. Removed in a future
-# 0.0.x once active workspaces are migrated.
-def _deprecated_deliverable_warning() -> None:
-    _warnings.warn(
-        "DeliverableManifest / DeliverableMeta are deprecated in keel 0.0.3; "
-        "deliverables now use ProjectManifest. Schedule for removal in a "
-        "future 0.0.x once workspaces are migrated.",
-        DeprecationWarning,
-        stacklevel=3,
-    )

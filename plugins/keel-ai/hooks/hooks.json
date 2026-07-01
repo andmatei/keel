@@ -1,0 +1,40 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/session-start\"",
+            "async": false,
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/post-tool-use\"",
+            "async": true,
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  },
+  "mcpServers": {
+    "keel-design-search": {
+      "command": "python",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server/server.py"],
+      "env": {
+        "GROVE_API_KEY": "${GROVE_API_KEY}",
+        "GROVE_VOYAGE_BASE_URL": "${GROVE_VOYAGE_BASE_URL}"
+      }
+    }
+  }
+}

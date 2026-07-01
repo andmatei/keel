@@ -46,12 +46,16 @@ def get_task(manifest: MilestonesManifest, id: str, *, out: "Output") -> Task:
 def edit_milestones(scope: "Scope") -> Iterator[MilestonesManifest]:
     """Load → yield → save the milestones manifest at the scope's path.
 
+    Validates the manifest graph on load. If the file has integrity issues
+    (cycles, dangling refs, duplicate IDs), raises ``GraphError`` before
+    yielding so callers never see corrupt state.
+
     Usage:
         with edit_milestones(scope) as manifest:
             # mutate manifest in place
     """
     path = scope.milestones_manifest_path
-    manifest = load_milestones_manifest(path)
+    manifest = load_milestones_manifest(path, validate=True)
     yield manifest
     path.parent.mkdir(parents=True, exist_ok=True)
     save_milestones_manifest(path, manifest)

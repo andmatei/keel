@@ -13,9 +13,7 @@ def test_keel_api_exports() -> None:
         "ProjectManifest",
         "ProjectMeta",
         "RepoSpec",
-        "load_deliverable_manifest",
         "load_project_manifest",
-        "save_deliverable_manifest",
         "save_project_manifest",
         # Dryrun
         "Op",

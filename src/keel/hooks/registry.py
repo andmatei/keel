@@ -1,12 +1,16 @@
 """In-tree subscriber registry.
 
-Built-in keel modules call `@subscribes_to("pre-X")` at import time to
-register themselves. The registry is process-global; tests reset it
-between runs via `_clear_registry()`.
+Built-in keel modules call ``@subscribes_to("entity.action.phase")`` at
+import time to register themselves.  Patterns may contain shell-style
+globs (``*``, ``?``, ``[seq]``) matched via :func:`fnmatch.fnmatch`.
+
+The registry is process-global; tests reset it between runs via
+``_clear_registry()``.
 """
 
 from __future__ import annotations
 
+import fnmatch
 from collections.abc import Callable, Iterator
 from typing import TYPE_CHECKING
 
@@ -21,28 +25,56 @@ Subscriber = Callable[["HookEvent"], None]
 _REGISTRY: dict[str, list[Subscriber]] = {}
 
 
-def subscribes_to(event_full_name: str) -> Callable[[Subscriber], Subscriber]:
-    """Decorator: register an in-tree subscriber for a given event name.
+def _is_glob(pattern: str) -> bool:
+    """Return True if *pattern* contains glob meta-characters."""
+    return any(ch in pattern for ch in ("*", "?", "["))
 
-    `event_full_name` MUST start with 'pre-' or 'post-'. Examples:
-    'pre-new', 'post-phase', 'pre-deliverable-add'.
+
+def subscribes_to(pattern: str) -> Callable[[Subscriber], Subscriber]:
+    """Decorator: register an in-tree subscriber for an event pattern.
+
+    *pattern* must have at least two dotted segments (e.g.
+    ``"project.create.pre"``, ``"*.status.post"``).  Glob characters
+    ``*``, ``?``, and ``[seq]`` are supported and matched via
+    :func:`fnmatch.fnmatch` at dispatch time.
 
     The decorated function receives the HookEvent and an Output kwarg,
-    and returns None. It may raise HookAborted (pre-events only) to abort.
+    and returns None.  It may raise HookAborted (pre-events only) to abort.
     """
-    if not (event_full_name.startswith("pre-") or event_full_name.startswith("post-")):
-        raise ValueError(f"event name '{event_full_name}' must start with 'pre-' or 'post-'")
+    # Replace glob chars with a placeholder letter so we can count real segments.
+    _sanitised = pattern.replace("*", "x").replace("?", "x").replace("[", "x").replace("]", "x")
+    if len(_sanitised.split(".")) < 2:
+        raise ValueError(
+            f"event pattern '{pattern}' must have at least 2 dotted segments "
+            f"(e.g. 'entity.action.phase')"
+        )
 
     def _register(fn: Subscriber) -> Subscriber:
-        _REGISTRY.setdefault(event_full_name, []).append(fn)
+        _REGISTRY.setdefault(pattern, []).append(fn)
         return fn
 
     return _register
 
 
-def iter_in_tree_subscribers(event_full_name: str) -> Iterator[Subscriber]:
-    """Yield in-tree subscribers for the given event in registration order."""
-    yield from _REGISTRY.get(event_full_name, [])
+def iter_matching_subscribers(event_full_name: str) -> Iterator[Subscriber]:
+    """Yield subscribers whose pattern matches *event_full_name*.
+
+    Exact-match subscribers are yielded first (in registration order),
+    followed by glob-match subscribers (in registration order).
+    """
+    glob_matches: list[Subscriber] = []
+
+    for pattern, subscribers in _REGISTRY.items():
+        if pattern == event_full_name:
+            yield from subscribers
+        elif _is_glob(pattern) and fnmatch.fnmatch(event_full_name, pattern):
+            glob_matches.extend(subscribers)
+
+    yield from glob_matches
+
+
+# Backward-compat alias kept during migration.
+iter_in_tree_subscribers = iter_matching_subscribers
 
 
 def _clear_registry() -> None:

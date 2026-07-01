@@ -4,7 +4,7 @@ The plugin owns its own Jinja templating layer and reads typed
 `Milestone`/`Task` objects + a `Scope` from keel core. The parent
 project epic id is read from `[extensions.ticketing.parent_id]` on
 the project's manifest; per-task parent milestone ticket ids come from
-the milestones manifest's `ticket_id` field.
+the milestones manifest's `tickets` dict (keyed by provider name).
 """
 
 from __future__ import annotations
@@ -86,7 +86,7 @@ class JiraProvider:
 
         manifest = load_milestones_manifest(scope.milestones_manifest_path)
         parent_milestone = find_milestone(manifest, task.milestone)
-        parent_ticket_id = parent_milestone.ticket_id if parent_milestone else None
+        parent_ticket_id = parent_milestone.tickets.get(self.name) if parent_milestone else None
 
         ctx = self._build_context(task=task, milestone=parent_milestone, scope=scope)
         summary = render(self._env, self._resolve_template("task_summary"), ctx)

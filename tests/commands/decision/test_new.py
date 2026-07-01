@@ -116,11 +116,11 @@ def test_decision_new_fires_pre_and_post(projects, make_project, monkeypatch) ->
     try:
         fired: list[tuple[str, dict]] = []
 
-        @subscribes_to("pre-decision-new")
+        @subscribes_to("decision.create.pre")
         def pre(event: HookEvent, *, out) -> None:
             fired.append((event.full_name, dict(event.payload)))
 
-        @subscribes_to("post-decision-new")
+        @subscribes_to("decision.create.post")
         def post(event: HookEvent, *, out) -> None:
             fired.append((event.full_name, dict(event.payload)))
 
@@ -133,10 +133,10 @@ def test_decision_new_fires_pre_and_post(projects, make_project, monkeypatch) ->
         assert len(fired) == 2
         pre_name, pre_payload = fired[0]
         post_name, post_payload = fired[1]
-        assert pre_name == "pre-decision-new"
+        assert pre_name == "decision.create.pre"
         assert pre_payload["title"] == "Use Postgres"
         assert pre_payload["slug"] == "use-postgres"
-        assert post_name == "post-decision-new"
+        assert post_name == "decision.create.post"
         assert "path" in post_payload
     finally:
         _clear_registry()
@@ -155,7 +155,7 @@ def test_decision_new_no_verify(projects, make_project, monkeypatch) -> None:
     register_builtin_listeners()
     try:
 
-        @subscribes_to("pre-decision-new")
+        @subscribes_to("decision.create.pre")
         def block(event: HookEvent, *, out) -> None:
             raise HookAborted("nope")
 

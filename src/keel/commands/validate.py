@@ -156,7 +156,7 @@ def cmd_validate(
 ) -> None:
     """Validate project structure and (optionally) content."""
     out = Output.from_context(ctx, json_mode=json_mode)
-    scope = workspace.resolve_cli_scope(name, None, allow_deliverable=False)
+    scope = workspace.resolve_cli_scope(name, None, allow_deliverable=False, out=out)
 
     findings: list[_Finding] = []
 

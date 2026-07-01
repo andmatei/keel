@@ -14,10 +14,8 @@ from keel.manifest import (
     ProjectMeta,
     RepoSpec,
     Task,
-    load_deliverable_manifest,
     load_milestones_manifest,
     load_project_manifest,
-    save_deliverable_manifest,
     save_milestones_manifest,
     save_project_manifest,
 )
@@ -163,13 +161,12 @@ def test_milestone_minimal() -> None:
     m = Milestone(id="m1", title="Foundation")
     assert m.id == "m1"
     assert m.status == "planned"
-    assert m.fan_out == []
-    assert m.ticket_id is None
+    assert m.tickets == {}
 
 
-def test_milestone_with_fan_out() -> None:
-    m = Milestone(id="m1", title="Ship X", fan_out=["foo", "bar"])
-    assert m.fan_out == ["foo", "bar"]
+def test_milestone_with_parent() -> None:
+    m = Milestone(id="sub-m1", title="Sub work", parent="m1")
+    assert m.parent == "m1"
 
 
 def test_milestone_rejects_invalid_status() -> None:
@@ -205,7 +202,7 @@ def test_milestones_manifest_round_trip(tmp_path) -> None:
     original = MilestonesManifest(
         milestones=[
             Milestone(id="m1", title="Foundation", status="active"),
-            Milestone(id="m2", title="Deliverable", fan_out=["foo"]),
+            Milestone(id="m2", title="Sub work", parent="m1"),
         ],
         tasks=[
             Task(id="t1", milestone="m1", title="Set up", status="done", branch="me/keel-m1-t1"),
@@ -229,6 +226,54 @@ def test_milestones_manifest_load_missing_file_returns_empty(tmp_path) -> None:
     m = load_milestones_manifest(path)
     assert m.milestones == []
     assert m.tasks == []
+
+
+def test_milestones_tickets_round_trip(tmp_path) -> None:
+    path = tmp_path / "milestones.toml"
+    original = MilestonesManifest(
+        milestones=[Milestone(id="m1", title="X", tickets={"jira": "CLOUDP-123"})],
+        tasks=[Task(id="t1", milestone="m1", title="Y", tickets={"jira": "CLOUDP-456"})],
+    )
+    save_milestones_manifest(path, original)
+    loaded = load_milestones_manifest(path)
+    assert loaded.milestones[0].tickets == {"jira": "CLOUDP-123"}
+    assert loaded.tasks[0].tickets == {"jira": "CLOUDP-456"}
+
+
+def test_milestones_empty_tickets_omitted_from_toml(tmp_path) -> None:
+    path = tmp_path / "milestones.toml"
+    save_milestones_manifest(
+        path,
+        MilestonesManifest(milestones=[Milestone(id="m1", title="X")]),
+    )
+    text = path.read_text()
+    assert "tickets" not in text
+    loaded = load_milestones_manifest(path)
+    assert loaded.milestones[0].tickets == {}
+
+
+def test_milestones_none_description_omitted_from_toml(tmp_path) -> None:
+    path = tmp_path / "milestones.toml"
+    original = MilestonesManifest(
+        milestones=[Milestone(id="m1", title="X")],
+        tasks=[Task(id="t1", milestone="m1", title="Y")],
+    )
+    save_milestones_manifest(path, original)
+    text = path.read_text()
+    assert "description" not in text
+    loaded = load_milestones_manifest(path)
+    assert loaded.milestones[0].description is None
+    assert loaded.tasks[0].description is None
+
+
+def test_milestones_empty_depends_on_omitted_from_toml(tmp_path) -> None:
+    path = tmp_path / "milestones.toml"
+    save_milestones_manifest(
+        path,
+        MilestonesManifest(tasks=[Task(id="t1", milestone="m1", title="X")]),
+    )
+    text = path.read_text()
+    assert "depends_on" not in text
 
 
 def test_project_meta_lifecycle_defaults_to_default() -> None:
@@ -306,70 +351,3 @@ def test_project_manifest_shared_worktree_excludes_repos(tmp_path) -> None:
             ),
             repos=[RepoSpec(remote="r", worktree="w")],
         )
-
-
-def test_load_deliverable_manifest_converts_to_project_manifest(tmp_path) -> None:
-    """Reading a v0.0.x deliverable.toml returns a ProjectManifest (converter)."""
-    p = tmp_path / "deliverable.toml"
-    p.write_text(
-        "[deliverable]\n"
-        'name = "x"\n'
-        'parent_project = "parent"\n'
-        'description = "d"\n'
-        "created = 2026-05-05\n"
-    )
-    m = load_deliverable_manifest(p)
-    assert isinstance(m, ProjectManifest)
-    assert m.project.name == "x"
-    assert m.project.description == "d"
-    assert m.project.shared_worktree is False
-    # parent_project is silently dropped — no longer part of the schema
-    assert m.repos == []
-
-
-def test_load_deliverable_manifest_preserves_repos_and_extensions(tmp_path) -> None:
-    """The converter carries over [[repos]] and [extensions] tables."""
-    p = tmp_path / "deliverable.toml"
-    p.write_text(
-        "[deliverable]\n"
-        'name = "x"\n'
-        'parent_project = "parent"\n'
-        'description = "d"\n'
-        "created = 2026-05-05\n"
-        "[[repos]]\n"
-        'remote = "git@e.com:o/r.git"\n'
-        'worktree = "code"\n'
-        "[extensions.ticketing.jira]\n"
-        'story_id = "FOO-1"\n'
-    )
-    m = load_deliverable_manifest(p)
-    assert len(m.repos) == 1
-    assert m.repos[0].remote == "git@e.com:o/r.git"
-    assert m.extensions["ticketing"]["jira"]["story_id"] == "FOO-1"
-
-
-def test_load_deliverable_manifest_emits_deprecation_warning(tmp_path) -> None:
-    """Reading a v0.0.x deliverable.toml should warn callers that the schema is deprecated."""
-    import warnings as _w
-
-    p = tmp_path / "deliverable.toml"
-    p.write_text(
-        "[deliverable]\n"
-        'name = "x"\n'
-        'parent_project = "parent"\n'
-        'description = "d"\n'
-        "created = 2026-05-05\n"
-    )
-    with _w.catch_warnings(record=True) as caught:
-        _w.simplefilter("always")
-        load_deliverable_manifest(p)
-    assert any(issubclass(w.category, DeprecationWarning) for w in caught), (
-        "expected DeprecationWarning"
-    )
-
-
-def test_save_deliverable_manifest_raises_not_implemented(tmp_path) -> None:
-    """save_deliverable_manifest is a stub — should raise NotImplementedError."""
-    p = tmp_path / "deliverable.toml"
-    with pytest.raises(NotImplementedError):
-        save_deliverable_manifest(p, None)

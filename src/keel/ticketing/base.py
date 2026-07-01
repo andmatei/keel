@@ -67,12 +67,8 @@ class TicketProvider(Protocol):
     def create_milestone(self, milestone: Milestone, scope: Scope) -> Ticket:
         """Create a ticket for the milestone.
 
-        The plugin reads its own per-project config from
-        `[extensions.ticketing.<name>]` via the scope's manifest, renders
-        templates, and submits.
-
-        Returns a `Ticket` with at minimum `id` and `url` populated. `title` and `status`
-        are recommended but optional.
+        The returned `Ticket.id` is stored in `milestone.tickets[self.name]`
+        by the caller.
 
         May raise on transport / auth failures. Keel wraps these in `safe_push`, which
         logs a warning and continues — the local manifest save is preserved.
@@ -83,7 +79,7 @@ class TicketProvider(Protocol):
         """Create a ticket for the task.
 
         Same shape as `create_milestone`. To find the milestone's parent ticket id,
-        walk `scope.manifest` → milestones → find_by_id(task.milestone) → ticket_id.
+        walk `scope.manifest` → milestones → find_by_id(task.milestone) → tickets[self.name].
 
         Returns a `Ticket` with at minimum `id` and `url` populated. `title` and `status`
         are recommended but optional.

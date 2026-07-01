@@ -27,7 +27,14 @@ from keel.manifest import (
 )
 from keel.ticketing.mock import MockProvider
 
-__all__ = ["MockProvider"]
+__all__ = [
+    "MockProvider",
+    "projects",
+    "make_project",
+    "make_deliverable",
+    "source_repo",
+    "mock_ticket_provider",
+]
 
 
 @pytest.fixture
@@ -45,6 +52,7 @@ def make_project(projects) -> Callable[..., Path]:
         name: str = "foo",
         description: str = "test project",
         lifecycle: str = "default",
+        tags: list[str] | None = None,
     ) -> Path:
         proj = projects / name
         proj.mkdir(parents=True, exist_ok=True)
@@ -59,6 +67,7 @@ def make_project(projects) -> Callable[..., Path]:
                     description=description,
                     created=date(2026, 5, 5),
                     lifecycle=lifecycle,
+                    tags=tags or [],
                 ),
                 repos=[],
             ),
@@ -91,6 +100,7 @@ def make_deliverable(make_project) -> Callable[..., Path]:
         description: str = "test deliverable",
         shared_worktree: bool = False,
         lifecycle: str = "default",
+        tags: list[str] | None = None,
     ) -> Path:
         from keel import workspace
 
@@ -110,6 +120,7 @@ def make_deliverable(make_project) -> Callable[..., Path]:
                     created=date(2026, 5, 5),
                     lifecycle=lifecycle,
                     shared_worktree=shared_worktree,
+                    tags=tags or [],
                 ),
                 repos=[],
             ),

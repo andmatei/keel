@@ -248,7 +248,7 @@ app.command(name="migrate")(cmd_migrate)
 - [ ] **Step 6: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/commands/migrate.py keel/src/keel/app.py keel/tests/commands/test_migrate.py
+git add keel/src/keel/commands/migrate.py keel/src/keel/app.py keel/tests/commands/test_migrate.py
 git commit -m "feat(keel): scaffold 'migrate' command with dry-run skeleton"
 ```
 
@@ -393,7 +393,7 @@ def _parse_code_section(claude_md_text: str, project_name: str) -> tuple[list, b
 - [ ] **Step 5: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/commands/migrate.py keel/tests/commands/test_migrate.py
+git add keel/src/keel/commands/migrate.py keel/tests/commands/test_migrate.py
 git commit -m "feat(keel): parse legacy '## Code' section in migrate"
 ```
 
@@ -463,7 +463,7 @@ def _enrich_with_worktree_state(unit_dir: Path, repos: list) -> list:
 - [ ] **Step 5: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/commands/migrate.py keel/tests/commands/test_migrate.py
+git add keel/src/keel/commands/migrate.py keel/tests/commands/test_migrate.py
 git commit -m "feat(keel): derive branch_prefix from existing worktrees in migrate"
 ```
 
@@ -597,7 +597,7 @@ def _extract_description(text: str) -> str | None:
 - [ ] **Step 5: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/commands/migrate.py keel/tests/commands/test_migrate.py
+git add keel/src/keel/commands/migrate.py keel/tests/commands/test_migrate.py
 git commit -m "feat(keel): migrate writes project.toml with --apply"
 ```
 
@@ -758,7 +758,7 @@ In `cmd_migrate`, after writing the project manifest (or in dry-run, after the d
 - [ ] **Step 5: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/commands/migrate.py keel/tests/commands/test_migrate.py
+git add keel/src/keel/commands/migrate.py keel/tests/commands/test_migrate.py
 git commit -m "feat(keel): migrate deliverables (deliverable.toml + .phase init)"
 ```
 
@@ -852,7 +852,7 @@ Source repo: see parent
 - [ ] **Step 3: Commit**
 
 ```bash
-cd ~/projects && git add keel/tests/commands/test_migrate.py
+git add keel/tests/commands/test_migrate.py
 git commit -m "test(keel): end-to-end migrate --all integration test"
 ```
 
@@ -992,7 +992,7 @@ If this also doesn't work cleanly, downgrade the test scope to "exit code 0" + "
 - [ ] **Step 6: Commit**
 
 ```bash
-cd ~/projects && git add keel/src/keel/commands/completion.py keel/src/keel/app.py keel/tests/commands/test_completion.py
+git add keel/src/keel/commands/completion.py keel/src/keel/app.py keel/tests/commands/test_completion.py
 git commit -m "feat(keel): implement 'completion' command (bash/zsh/fish)"
 ```
 
@@ -1032,7 +1032,7 @@ grep -n 'projects/bin/project' ~/projects/.claude/commands/decide.md || echo "no
 - [ ] **Step 4: Commit**
 
 ```bash
-cd ~/projects && git add .claude/commands/decide.md
+git add .claude/commands/decide.md
 git commit -m "chore(slash): repoint /decide at 'keel decision new'"
 ```
 
@@ -1058,7 +1058,7 @@ grep -n 'projects/bin/project' ~/projects/.claude/commands/phase.md || echo "non
 - [ ] **Step 4: Commit**
 
 ```bash
-cd ~/projects && git add .claude/commands/phase.md
+git add .claude/commands/phase.md
 git commit -m "chore(slash): repoint /phase at 'keel phase'"
 ```
 
@@ -1079,7 +1079,7 @@ The Bash CLI's `export-design -p NAME [-D DELIV] [-o PATH]` maps to `keel design
 
 ```bash
 grep -n 'projects/bin/project' ~/projects/.claude/commands/export-design.md || echo "none"
-cd ~/projects && git add .claude/commands/export-design.md
+git add .claude/commands/export-design.md
 git commit -m "chore(slash): repoint /export-design at 'keel design export'"
 ```
 
@@ -1118,7 +1118,7 @@ grep -rn 'projects/bin/project' ~/projects/.claude/commands/ || echo "no remaini
 - [ ] **Step 4: Commit**
 
 ```bash
-cd ~/projects && git add .claude/commands/
+git add .claude/commands/
 git commit -m "chore(slash): audit and repoint remaining slash commands at keel"
 ```
 
@@ -1162,7 +1162,7 @@ grep -n 'projects/bin/project\b' ~/projects/CLAUDE.md || echo "no remaining bash
 - [ ] **Step 4: Commit**
 
 ```bash
-cd ~/projects && git add CLAUDE.md
+git add CLAUDE.md
 git commit -m "docs(workspace): update conventions to reference keel"
 ```
 
@@ -1181,9 +1181,9 @@ Keep `~/projects/bin/gdocs*` in place (separate tool).
 
 ```bash
 mkdir -p ~/projects/bin/.archive-bash-cli
-git -C ~/projects mv bin/project bin/.archive-bash-cli/project
-git -C ~/projects mv bin/commands bin/.archive-bash-cli/commands
-git -C ~/projects mv bin/lib bin/.archive-bash-cli/lib
+git -C keel mv bin/project bin/.archive-bash-cli/project
+git -C keel mv bin/commands bin/.archive-bash-cli/commands
+git -C keel mv bin/lib bin/.archive-bash-cli/lib
 ```
 
 - [ ] **Step 2: Add a README at the archive root**
@@ -1221,7 +1221,7 @@ test -f ~/projects/bin/project && echo "ERROR: still in bin/" || echo "moved cle
 - [ ] **Step 4: Commit**
 
 ```bash
-cd ~/projects && git add bin/
+git add bin/
 git commit -m "chore(workspace): archive Bash CLI to bin/.archive-bash-cli/"
 ```
 
@@ -1287,7 +1287,7 @@ grep -rn 'projects/bin/project' ~/projects/.claude/commands/ ~/projects/CLAUDE.m
 - [ ] **Step 6: Tag**
 
 ```bash
-git -C ~/projects tag keel-plan-4
+git -C keel tag keel-plan-4
 ```
 
 ---

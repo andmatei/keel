@@ -21,7 +21,7 @@ def cmd_list(
 ) -> None:
     """List source repos declared in the manifest."""
     out = Output.from_context(ctx, json_mode=json_mode)
-    scope = workspace.resolve_cli_scope(project, deliverable)
+    scope = workspace.resolve_cli_scope(project, deliverable, out=out)
 
     m = load_project_manifest(scope.manifest_path)
 

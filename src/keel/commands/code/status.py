@@ -63,7 +63,7 @@ def cmd_status(
 ) -> None:
     """Show per-repo worktree status (cloned, exists, branch, clean/dirty)."""
     out = Output.from_context(ctx, json_mode=json_mode)
-    scope = workspace.resolve_cli_scope(project, deliverable)
+    scope = workspace.resolve_cli_scope(project, deliverable, out=out)
     project = scope.project
     deliverable = scope.deliverable
 

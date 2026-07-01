@@ -66,7 +66,7 @@ def test_restore_fires_post_restore(projects, monkeypatch) -> None:
     try:
         fired: list[str] = []
 
-        @subscribes_to("post-restore")
+        @subscribes_to("project.restore.post")
         def post(event: HookEvent, *, out) -> None:
             fired.append(event.full_name)
             assert event.project == "foo"
@@ -82,7 +82,7 @@ def test_restore_fires_post_restore(projects, monkeypatch) -> None:
 
         result = runner.invoke(app, ["restore", "foo", "-y"])
         assert result.exit_code == 0, result.stderr
-        assert fired == ["post-restore"]
+        assert fired == ["project.restore.post"]
     finally:
         _clear_registry()
         register_builtin_listeners()

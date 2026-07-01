@@ -5,15 +5,16 @@ from __future__ import annotations
 import typer
 
 from keel.api import ErrorCode, OpLog, Output, confirm_destructive, projects_dir
-from keel.hooks import hook_event, hookable
+from keel.hooks import HookAborted, hook_event, hookable
 
 
-@hookable("restore")
+@hookable("project.restore")
 def cmd_restore(
     ctx: typer.Context,
     name: str = typer.Argument(..., help="Project name to restore from .archive/."),
     yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirm prompt."),
     dry_run: bool = typer.Option(False, "--dry-run", help="Print intended operations and exit."),
+    no_verify: bool = typer.Option(False, "--no-verify", help="Skip project.restore.pre hooks."),
     json_mode: bool = typer.Option(False, "--json", help="Emit machine-readable JSON to stdout."),
 ) -> None:
     """Move a project from `<projects-dir>/.archive/` back to the active workspace."""
@@ -54,16 +55,23 @@ def cmd_restore(
 
     confirm_destructive(f"Restore project '{name}' from archive?", yes=yes)
 
-    with hook_event(
-        "restore",
-        project=name,
-        deliverable=None,
-        payload={},
-        positional_args=(name,),
-        out=out,
-    ) as ev:
-        archive_dir.rename(target_dir)
-        ev.add_post_payload({"path": str(target_dir)})
+    try:
+        with hook_event(
+            "project.restore",
+            project=name,
+            deliverable=None,
+            payload={},
+            positional_args=(name,),
+            out=out,
+            no_verify=no_verify,
+        ) as ev:
+            archive_dir.rename(target_dir)
+            ev.add_post_payload({"path": str(target_dir)})
+    except HookAborted as e:
+        out.fail(
+            f"project.restore aborted: {e} (use --no-verify to override)",
+            code=ErrorCode.PREFLIGHT_BLOCKED,
+        )
 
     out.result(
         {"restored": name, "path": str(target_dir)},

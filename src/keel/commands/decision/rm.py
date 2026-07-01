@@ -25,7 +25,7 @@ def cmd_rm(
         help="Decision scope: a deliverable instead of the project. Auto-detected from CWD.",
     ),
     project: str | None = typer.Option(
-        None, "--project", "-p", help="Parent project. Auto-detected from CWD if omitted."
+        None, "--project", "-p", help="Project name. Auto-detected from CWD if omitted."
     ),
     yes: bool = typer.Option(
         False, "-y", "--yes", help="Skip interactive prompts (description, etc.)."

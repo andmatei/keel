@@ -109,10 +109,6 @@ from keel.commands.rename import cmd_rename  # noqa: E402
 
 app.command(name="rename")(cmd_rename)
 
-from keel.commands.migrate import cmd_migrate  # noqa: E402
-
-app.command(name="migrate")(cmd_migrate)
-
 from keel.commands.completion import cmd_completion  # noqa: E402
 
 app.command(name="completion")(cmd_completion)
@@ -156,6 +152,14 @@ app.add_typer(lifecycle_app, name="lifecycle")
 from keel.commands.hooks import app as hooks_app  # noqa: E402
 
 app.add_typer(hooks_app, name="hooks")
+
+from keel.commands.tag import app as tag_app  # noqa: E402
+
+app.add_typer(tag_app, name="tag")
+
+from keel.commands.ai import app as ai_app  # noqa: E402
+
+app.add_typer(ai_app, name="ai")
 
 # Load any third-party plugins last so they can extend existing groups.
 _load_plugin_commands()

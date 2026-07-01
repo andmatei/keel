@@ -61,6 +61,24 @@ def cmd_doctor(
                     {"level": "error", "area": "ticketing", "message": f"configure() raised: {e}"}
                 )
 
+    # Check AI config
+    ai_raw = pm.extensions.get("ai")
+    if ai_raw is not None:
+        from pydantic import ValidationError
+
+        from keel.ai.config import parse_ai_config
+
+        try:
+            parse_ai_config(ai_raw)
+        except ValidationError as e:
+            findings.append(
+                {
+                    "level": "error",
+                    "area": "ai",
+                    "message": f"invalid [extensions.ai] config: {e}",
+                }
+            )
+
     if json_mode:
         out.result({"findings": findings})
     else:

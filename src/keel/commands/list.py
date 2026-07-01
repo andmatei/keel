@@ -9,6 +9,7 @@ from rich.tree import Tree
 
 from keel import workspace
 from keel.api import Output, load_milestones_manifest, load_project_manifest
+from keel.tags import format_tags
 
 
 @dataclass
@@ -19,6 +20,7 @@ class _ProjectRow:
     deliverable_count: int
     active_milestones: int
     active_tasks: int
+    tags: list[str]
 
 
 def _scan(projects_root) -> list[_ProjectRow]:
@@ -57,6 +59,7 @@ def _scan(projects_root) -> list[_ProjectRow]:
                 deliverable_count=d_count,
                 active_milestones=active_milestones_count,
                 active_tasks=active_tasks_count,
+                tags=list(m.project.tags),
             )
         )
     return rows
@@ -70,6 +73,9 @@ def cmd_list(
     active: bool = typer.Option(
         False, "--active", help="Show only projects with at least one active milestone or task."
     ),
+    tag: list[str] | None = typer.Option(
+        None, "--tag", help="Filter to projects with this tag. Repeatable; AND semantics."
+    ),
     json_mode: bool = typer.Option(False, "--json", help="Emit machine-readable JSON to stdout."),
 ) -> None:
     """List projects in the workspace."""
@@ -80,6 +86,9 @@ def cmd_list(
         rows = [r for r in rows if r.phase == phase]
     if active:
         rows = [r for r in rows if r.active_milestones > 0 or r.active_tasks > 0]
+    if tag:
+        tag_set = set(tag)
+        rows = [r for r in rows if tag_set.issubset(set(r.tags))]
 
     if json_mode:
         out.result(
@@ -92,6 +101,7 @@ def cmd_list(
                         "deliverable_count": r.deliverable_count,
                         "active_milestones": r.active_milestones,
                         "active_tasks": r.active_tasks,
+                        "tags": r.tags,
                     }
                     for r in rows
                 ]
@@ -114,6 +124,8 @@ def cmd_list(
                 f"  ({r.deliverable_count} deliverable{'s' if r.deliverable_count != 1 else ''})"
             )
         # Add active milestones and tasks info
+        if r.tags:
+            label += f"  {format_tags(r.tags)}"
         if r.active_milestones or r.active_tasks:
             label += f"  [yellow]Active M: {r.active_milestones} T: {r.active_tasks}[/yellow]"
         tree.add(label)

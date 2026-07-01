@@ -18,8 +18,8 @@ own scope (opt-in), phase, and decisions — parallel to the project level.
   and optional `code/` worktrees.
 - **Deliverable**: a sub-project nested at `~/projects/<name>/deliverables/<x>/`,
   with its own `design/` and (optionally) `code/`. Treated as a mini-project.
-- **Manifest**: TOML file at `<unit>/design/{project,deliverable}.toml` that
-  declares linked source repos and how to materialize their worktrees.
+- **Manifest**: TOML file at `<unit>/project.toml` that declares linked
+  source repos and how to materialize their worktrees.
 - **Composition principle**: the project's design materials compose into a
   single multi-section export. Each level (project, deliverable) contributes
   its own sections, like tabs in a Google Doc.
@@ -55,8 +55,9 @@ own scope (opt-in), phase, and decisions — parallel to the project level.
 
 - Python ≥3.11 is available on the host. `uv tool install --editable .` handles
   isolation, and `tomllib` is in the stdlib.
-- Existing projects need a one-time migration to populate manifests from
-  current CLAUDE.md text. A migration tool is in scope.
+- Existing projects needed a one-time migration to populate manifests from
+  current CLAUDE.md text. Migration is complete; `keel migrate` was removed
+  in 0.0.5.
 - AST-aware markdown editing is more code than `sed`, but `markdown-it-py` has a
   mature ecosystem and the alternative (regex-based mutation) is what we're
   fixing.
@@ -90,7 +91,7 @@ own scope (opt-in), phase, and decisions — parallel to the project level.
 
 - **Milestones + tasks (Plan 5)** — shipped. See `keel milestone` and `keel task` commands.
 - **Ticketing plugin protocol (Plan 5)** — shipped. No bundled providers; see `design/decisions/2026-04-29-plan-5-plugin-model.md` for rationale.
-- **Migration from Bash CLI (Plan 4)** — complete. Bash CLI archived; `keel migrate` handles legacy projects.
+- **Migration from Bash CLI (Plan 4)** — complete. Bash CLI archived; `keel migrate` removed in 0.0.5 (all active workspaces migrated).
 - **Rename to `keel` (Plan 3-4)** — complete. Public repo at https://github.com/andmatei/keel.
 
 ## References

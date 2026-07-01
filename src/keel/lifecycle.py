@@ -52,9 +52,8 @@ def is_valid_phase(name: str) -> bool:
     return name in _default_lifecycle().states
 
 
-# Milestone and task state sets — currently identical, but kept as separate
-# constants so they can diverge later if needed (e.g. tasks gaining a `blocked`
-# state, milestones losing one).
+# Milestone/task states are intentionally separate from the phase lifecycle FSM.
+# Phases govern the project/deliverable; these govern work items within them.
 MILESTONE_STATES: list[str] = ["planned", "active", "done", "cancelled"]
 TASK_STATES: list[str] = MILESTONE_STATES  # same set; alias for clarity at call sites
 

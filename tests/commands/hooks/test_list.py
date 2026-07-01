@@ -16,8 +16,8 @@ def test_hooks_list_default_shows_events(projects, monkeypatch) -> None:
     result = runner.invoke(app, ["hooks", "list"])
     assert result.exit_code == 0, result.stderr
     # Should mention some known events
-    assert "new" in result.stdout
-    assert "phase" in result.stdout
+    assert "project.create" in result.stdout
+    assert "project.phase" in result.stdout
 
 
 def test_hooks_list_json(projects, monkeypatch) -> None:
@@ -28,7 +28,7 @@ def test_hooks_list_json(projects, monkeypatch) -> None:
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
     assert "events" in payload
-    assert "new" in payload["events"]
+    assert "project.create" in payload["events"]
 
 
 def test_hooks_list_shows_in_tree_subscribers(projects, monkeypatch) -> None:
@@ -37,7 +37,7 @@ def test_hooks_list_shows_in_tree_subscribers(projects, monkeypatch) -> None:
     monkeypatch.chdir(projects)
     result = runner.invoke(app, ["hooks", "list", "--json"])
     payload = json.loads(result.stdout)
-    phase = payload["events"].get("phase", {})
+    phase = payload["events"].get("project.phase", {})
     pre_subs = phase.get("pre_subscribers", [])
     # Built-in listeners include _check_scope_md_edited etc.
     assert any("scope_md_edited" in s for s in pre_subs)

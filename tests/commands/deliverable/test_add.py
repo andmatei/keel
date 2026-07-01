@@ -168,12 +168,12 @@ def test_deliverable_add_fires_pre_and_post(projects, make_project, monkeypatch)
     try:
         fired: list[str] = []
 
-        @subscribes_to("pre-deliverable-add")
+        @subscribes_to("deliverable.create.pre")
         def pre(event: HookEvent, *, out) -> None:
             fired.append(event.full_name)
             assert event.project == "foo"
 
-        @subscribes_to("post-deliverable-add")
+        @subscribes_to("deliverable.create.post")
         def post(event: HookEvent, *, out) -> None:
             fired.append(event.full_name)
             assert event.deliverable == "bar"
@@ -184,7 +184,7 @@ def test_deliverable_add_fires_pre_and_post(projects, make_project, monkeypatch)
         monkeypatch.chdir(proj)
         result = runner.invoke(app, ["deliverable", "add", "bar", "-d", "test", "-y"])
         assert result.exit_code == 0
-        assert fired == ["pre-deliverable-add", "post-deliverable-add"]
+        assert fired == ["deliverable.create.pre", "deliverable.create.post"]
     finally:
         _clear_registry()
         register_builtin_listeners()
@@ -202,7 +202,7 @@ def test_deliverable_add_no_verify(projects, make_project, monkeypatch) -> None:
     register_builtin_listeners()
     try:
 
-        @subscribes_to("pre-deliverable-add")
+        @subscribes_to("deliverable.create.pre")
         def block(event: HookEvent, *, out) -> None:
             raise HookAborted("nope")
 

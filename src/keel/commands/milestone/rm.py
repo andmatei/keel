@@ -14,8 +14,10 @@ from keel.api import (
     load_milestones_manifest,
     resolve_cli_scope,
 )
+from keel.hooks import HookAborted, hook_event, hookable
 
 
+@hookable("milestone.rm")
 def cmd_rm(
     ctx: typer.Context,
     id: str = typer.Argument(...),
@@ -37,6 +39,7 @@ def cmd_rm(
         "--force",
         help="Remove even if not in cancelled state and even if tasks reference it.",
     ),
+    no_verify: bool = typer.Option(False, "--no-verify", help="Skip milestone.rm.pre hooks."),
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Print intended operations and exit; write nothing."
     ),
@@ -48,7 +51,7 @@ def cmd_rm(
     scope = resolve_cli_scope(project, deliverable, out=out)
 
     # Pre-validate before write: load and validate conditions
-    manifest = load_milestones_manifest(scope.milestones_manifest_path)
+    manifest = load_milestones_manifest(scope.milestones_manifest_path, validate=True)
     milestone = get_milestone(manifest, id, out=out)
 
     if milestone.status != "cancelled" and not force:
@@ -74,7 +77,22 @@ def cmd_rm(
 
     confirm_destructive(f"Remove milestone {id}?", yes=yes)
 
-    with edit_milestones(scope) as manifest:
-        manifest.milestones = [m for m in manifest.milestones if m.id != id]
+    try:
+        with hook_event(
+            "milestone.rm",
+            project=scope.project,
+            deliverable=scope.deliverable,
+            payload={"id": id},
+            positional_args=(id,),
+            out=out,
+            no_verify=no_verify,
+        ):
+            with edit_milestones(scope) as manifest:
+                manifest.milestones = [m for m in manifest.milestones if m.id != id]
+    except HookAborted as e:
+        out.fail(
+            f"milestone.rm aborted: {e} (use --no-verify to override)",
+            code=ErrorCode.PREFLIGHT_BLOCKED,
+        )
 
     out.result({"removed": id}, human_text=f"Milestone removed: {id}")

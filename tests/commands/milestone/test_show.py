@@ -32,6 +32,8 @@ def test_show_json(projects, make_project, monkeypatch) -> None:
     assert data["status"] == "planned"
     assert "task_count" in data
     assert data["task_count"] == 0
+    assert data["tickets"] == {}
+    assert data["description"] is None
 
 
 def test_show_unknown_id_fails(projects, make_project, monkeypatch) -> None:

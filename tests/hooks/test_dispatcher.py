@@ -2,15 +2,9 @@
 
 from __future__ import annotations
 
-import stat
 from pathlib import Path
 
 import pytest
-
-
-def _make_executable_script(path: Path, content: str) -> None:
-    path.write_text(content)
-    path.chmod(path.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
 
 
 def test_dispatcher_fires_in_tree_subscribers_in_order() -> None:
@@ -23,16 +17,17 @@ def test_dispatcher_fires_in_tree_subscribers_in_order() -> None:
     _clear_registry()
     calls: list[str] = []
 
-    @subscribes_to("pre-new")
+    @subscribes_to("project.create.pre")
     def first(event: HookEvent, *, out: Output) -> None:
         calls.append("first")
 
-    @subscribes_to("pre-new")
+    @subscribes_to("project.create.pre")
     def second(event: HookEvent, *, out: Output) -> None:
         calls.append("second")
 
     event = HookEvent(
-        name="new",
+        entity="project",
+        action="create",
         phase="pre",
         project="foo",
         deliverable=None,
@@ -53,17 +48,18 @@ def test_dispatcher_pre_event_propagates_exceptions() -> None:
     _clear_registry()
     calls: list[str] = []
 
-    @subscribes_to("pre-phase")
+    @subscribes_to("project.phase.pre")
     def first(event: HookEvent, *, out: Output) -> None:
         calls.append("first")
         raise HookAborted("blocked")
 
-    @subscribes_to("pre-phase")
+    @subscribes_to("project.phase.pre")
     def second(event: HookEvent, *, out: Output) -> None:
         calls.append("second")
 
     event = HookEvent(
-        name="phase",
+        entity="project",
+        action="phase",
         phase="pre",
         project="foo",
         deliverable=None,
@@ -84,12 +80,13 @@ def test_dispatcher_pre_event_treats_arbitrary_exceptions_as_aborts() -> None:
 
     _clear_registry()
 
-    @subscribes_to("pre-new")
+    @subscribes_to("project.create.pre")
     def buggy(event: HookEvent, *, out: Output) -> None:
         raise ValueError("oops, bug in preflight")
 
     event = HookEvent(
-        name="new",
+        entity="project",
+        action="create",
         phase="pre",
         project="foo",
         deliverable=None,
@@ -110,16 +107,17 @@ def test_dispatcher_post_event_swallows_all_exceptions(capsys) -> None:
     _clear_registry()
     calls: list[str] = []
 
-    @subscribes_to("post-new")
+    @subscribes_to("project.create.post")
     def broken(event: HookEvent, *, out: Output) -> None:
         raise ValueError("post-hook bug")
 
-    @subscribes_to("post-new")
+    @subscribes_to("project.create.post")
     def healthy(event: HookEvent, *, out: Output) -> None:
         calls.append("healthy")
 
     event = HookEvent(
-        name="new",
+        entity="project",
+        action="create",
         phase="post",
         project="foo",
         deliverable=None,
@@ -132,7 +130,7 @@ def test_dispatcher_post_event_swallows_all_exceptions(capsys) -> None:
     assert calls == ["healthy"]
 
 
-def test_dispatcher_fires_user_scripts_after_in_tree(tmp_path: Path) -> None:
+def test_dispatcher_fires_user_scripts_after_in_tree(tmp_path: Path, make_executable_script) -> None:
     """User scripts fire after in-tree subscribers, workspace before project."""
     from keel.hooks import HookEvent, subscribes_to
     from keel.hooks.dispatcher import dispatch
@@ -147,22 +145,23 @@ def test_dispatcher_fires_user_scripts_after_in_tree(tmp_path: Path) -> None:
     (workspace_dir / ".keel" / "hooks").mkdir(parents=True)
     (project_dir / ".keel" / "hooks").mkdir(parents=True)
 
-    @subscribes_to("post-new")
+    @subscribes_to("project.create.post")
     def in_tree(event: HookEvent, *, out: Output) -> None:
         with order_log.open("a") as f:
             f.write("in-tree\n")
 
-    _make_executable_script(
-        workspace_dir / ".keel" / "hooks" / "post-new",
+    make_executable_script(
+        workspace_dir / ".keel" / "hooks" / "project.create.post",
         f'#!/usr/bin/env bash\necho "workspace" >> {order_log}\n',
     )
-    _make_executable_script(
-        project_dir / ".keel" / "hooks" / "post-new",
+    make_executable_script(
+        project_dir / ".keel" / "hooks" / "project.create.post",
         f'#!/usr/bin/env bash\necho "project" >> {order_log}\n',
     )
 
     event = HookEvent(
-        name="new",
+        entity="project",
+        action="create",
         phase="post",
         project="foo",
         deliverable=None,
@@ -183,7 +182,8 @@ def test_dispatcher_no_subscribers_is_silent() -> None:
 
     _clear_registry()
     event = HookEvent(
-        name="nothing-listens",
+        entity="misc",
+        action="nothing-listens",
         phase="post",
         project=None,
         deliverable=None,

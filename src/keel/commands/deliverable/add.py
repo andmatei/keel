@@ -25,7 +25,7 @@ from keel.lifecycles import LifecycleNotFoundError, load_lifecycle
 from keel.markdown_edit import insert_under_heading
 
 
-@hookable("deliverable-add")
+@hookable("deliverable.create")
 def cmd_add(
     ctx: typer.Context,
     name: str = typer.Argument(..., help="Deliverable name (will be slugified)."),
@@ -33,7 +33,7 @@ def cmd_add(
         None, "-d", "--description", help="Brief deliverable description; required."
     ),
     project: str | None = typer.Option(
-        None, "--project", "-p", help="Parent project. Auto-detected from CWD if omitted."
+        None, "--project", "-p", help="Project name. Auto-detected from CWD if omitted."
     ),
     repo: str | None = typer.Option(
         None,
@@ -50,7 +50,7 @@ def cmd_add(
     yes: bool = typer.Option(
         False, "-y", "--yes", help="Skip interactive prompts (description, etc.)."
     ),
-    no_verify: bool = typer.Option(False, "--no-verify", help="Skip pre-deliverable-add hooks."),
+    no_verify: bool = typer.Option(False, "--no-verify", help="Skip deliverable.create.pre hooks."),
     json_mode: bool = typer.Option(False, "--json", help="Emit machine-readable JSON to stdout."),
 ) -> None:
     """Create a new deliverable inside a project.
@@ -139,7 +139,7 @@ def cmd_add(
     # Fire pre-deliverable-add, do the work, fire post-deliverable-add.
     try:
         with hook_event(
-            "deliverable-add",
+            "deliverable.create",
             project=project,
             deliverable=slug,
             payload={"description": description, "lifecycle": parent_lifecycle},
@@ -147,8 +147,8 @@ def cmd_add(
             out=out,
             no_verify=no_verify,
         ) as ev:
-            # Reuse the same scaffold logic as `keel new`. Late-import to avoid circulars.
-            from keel.commands.new import _scaffold_unit
+            # Reuse the same scaffold logic as `keel new`.
+            from keel.commands._helpers import _scaffold_unit
 
             manifest = _scaffold_unit(
                 scope=deliv_scope,
@@ -208,7 +208,7 @@ def cmd_add(
             )
     except HookAborted as e:
         out.fail(
-            f"deliverable add aborted: {e} (use --no-verify to override)",
+            f"deliverable.create aborted: {e} (use --no-verify to override)",
             code=ErrorCode.PREFLIGHT_BLOCKED,
         )
 

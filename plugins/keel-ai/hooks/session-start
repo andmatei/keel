@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# keel-ai SessionStart hook
+# 1. Generate/update AGENTS.md and CLAUDE.md at the project root.
+# 2. Output the using-keel-ai skill as additional session context.
+# 3. Signal that design document index should be refreshed.
+set -euo pipefail
+
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Check if keel CLI is available.
+command -v keel &>/dev/null || exit 0
+
+# Check if we're inside a keel project.
+SHOW_OUTPUT=$(keel show --brief --json 2>/dev/null) || exit 0
+printf '%s' "$SHOW_OUTPUT" | grep -q '"name"' || exit 0
+
+# Generate AGENTS.md + CLAUDE.md at the project root.
+PROJECT_ROOT=$(printf '%s' "$SHOW_OUTPUT" \
+    | python3 -c "import sys,json; print(json.load(sys.stdin)['path'])" 2>/dev/null || echo "")
+if [ -n "$PROJECT_ROOT" ]; then
+    keel ai generate --output "$PROJECT_ROOT" 2>/dev/null || true
+fi
+
+# Read the using-keel-ai skill and output as additional context.
+SKILL_FILE="$PLUGIN_ROOT/skills/using-keel-ai/SKILL.md"
+[ -f "$SKILL_FILE" ] || exit 0
+
+# Strip frontmatter, append reindex hint, and emit as hook JSON.
+SKILL_CONTENT=$(awk '/^---$/{if(++c==2){found=1;next}}found' "$SKILL_FILE")
+REINDEX_HINT="
+
+## Session Startup
+If the keel-design-search MCP server is available, call the reindex tool
+to ensure the design document index is fresh for this session."
+
+printf '%s\n%s' "$SKILL_CONTENT" "$REINDEX_HINT" \
+    | python3 "$HOOK_DIR/hook_output.py"

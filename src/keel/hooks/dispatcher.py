@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from keel.hooks.loader import load_plugin_listeners
-from keel.hooks.registry import iter_in_tree_subscribers
+from keel.hooks.registry import iter_matching_subscribers
 from keel.hooks.scripts import discover_hook_scripts, run_user_script
 from keel.hooks.types import HookEvent
 
@@ -48,7 +48,7 @@ def dispatch(
     is_pre = event.phase == "pre"
 
     # 1. In-tree subscribers (includes plugin-registered subscribers post-load).
-    for subscriber in iter_in_tree_subscribers(event.full_name):
+    for subscriber in iter_matching_subscribers(event.full_name):
         try:
             subscriber(event, out=out)
         except Exception as e:

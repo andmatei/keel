@@ -7,7 +7,7 @@ from rich.table import Table
 
 from keel.api import Output
 from keel.hooks.hookable import registered_events
-from keel.hooks.registry import _REGISTRY
+from keel.hooks.registry import _REGISTRY, iter_matching_subscribers
 
 
 def cmd_list(
@@ -29,16 +29,23 @@ def cmd_list(
 
     events = sorted(registered_events())
     payload: dict[str, dict] = {}
-    for event_name in events:
-        pre_subs = [_fmt_subscriber(s) for s in _REGISTRY.get(f"pre-{event_name}", [])]
-        post_subs = [_fmt_subscriber(s) for s in _REGISTRY.get(f"post-{event_name}", [])]
-        payload[event_name] = {
+    for event_base in events:
+        pre_subs = [_fmt_subscriber(s) for s in iter_matching_subscribers(f"{event_base}.pre")]
+        post_subs = [_fmt_subscriber(s) for s in iter_matching_subscribers(f"{event_base}.post")]
+        payload[event_base] = {
             "pre_subscribers": pre_subs,
             "post_subscribers": post_subs,
         }
     # Also surface any extra subscribers for events that aren't in registered_events
     # (e.g. plugins subscribing to events keel-cli doesn't fire).
-    extra_keys = {k for k in _REGISTRY if k.split("-", 1)[1] not in events}
+    # A registered key like "project.create.pre" has event_base = "project.create";
+    # strip the last segment to get the event_base.
+    known_bases = set(events)
+    extra_keys = set()
+    for k in _REGISTRY:
+        parts = k.rsplit(".", 1)
+        if len(parts) == 2 and parts[0] not in known_bases:
+            extra_keys.add(k)
     extra_subs = {k: [_fmt_subscriber(s) for s in _REGISTRY[k]] for k in extra_keys}
 
     if json_mode:
@@ -54,10 +61,10 @@ def cmd_list(
     table.add_column("Event")
     table.add_column("Pre subscribers")
     table.add_column("Post subscribers")
-    for event_name in events:
-        e = payload[event_name]
+    for event_base in events:
+        e = payload[event_base]
         table.add_row(
-            event_name,
+            event_base,
             "\n".join(e["pre_subscribers"]) or "—",
             "\n".join(e["post_subscribers"]) or "—",
         )

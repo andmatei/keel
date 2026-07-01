@@ -12,11 +12,16 @@ from keel.hooks.types import HookAborted, HookEvent
 
 Layer = Literal["workspace", "project"]
 
+_HOOK_TIMEOUT_SECS = 30
+
 
 def _event_to_env(event: HookEvent, layer: Layer) -> dict[str, str]:
     """Compute the env-var subset added on top of the parent env."""
     env: dict[str, str] = {
         "KEEL_EVENT": event.full_name,
+        "KEEL_ENTITY": event.entity,
+        "KEEL_ACTION": event.action,
+        "KEEL_PHASE": event.phase,
         "KEEL_HOOK_LAYER": layer,
     }
     if event.project is not None:
@@ -24,14 +29,15 @@ def _event_to_env(event: HookEvent, layer: Layer) -> dict[str, str]:
     if event.deliverable is not None:
         env["KEEL_DELIVERABLE"] = event.deliverable
 
-    # Per-event extras: KEEL_<EVENT_UPPER>_<FIELD_UPPER> = str(value)
-    # e.g. event.name="phase", payload={"from": "scoping"} -> KEEL_PHASE_FROM=scoping
-    event_upper = event.name.replace("-", "_").upper()
+    # Per-event extras: KEEL_<ACTION_UPPER>_<FIELD_UPPER> = str(value)
+    # e.g. event.action="phase", payload={"from": "scoping"} -> KEEL_PHASE_FROM=scoping
+    action_upper = event.action.upper()
     for key, value in event.payload.items():
         if value is None:
             continue
         field_upper = key.replace("-", "_").upper()
-        env[f"KEEL_{event_upper}_{field_upper}"] = str(value)
+        env_val = str(value).lower() if isinstance(value, bool) else str(value)
+        env[f"KEEL_{action_upper}_{field_upper}"] = env_val
     return env
 
 
@@ -73,7 +79,8 @@ def run_user_script(script: Path, event: HookEvent, *, layer: Layer) -> None:
     env = {**os.environ, **_event_to_env(event, layer)}
     stdin_data = json.dumps(
         {
-            "name": event.name,
+            "entity": event.entity,
+            "action": event.action,
             "phase": event.phase,
             "project": event.project,
             "deliverable": event.deliverable,
@@ -81,14 +88,20 @@ def run_user_script(script: Path, event: HookEvent, *, layer: Layer) -> None:
         }
     )
 
-    result = subprocess.run(
-        [str(script), *event.positional_args],
-        env=env,
-        input=stdin_data,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            [str(script), *event.positional_args],
+            env=env,
+            input=stdin_data,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=_HOOK_TIMEOUT_SECS,
+        )
+    except subprocess.TimeoutExpired:
+        raise HookAborted(
+            f"hook '{script.name}' (layer={layer}) timed out after {_HOOK_TIMEOUT_SECS}s"
+        )
     if result.returncode != 0:
         stderr = (result.stderr or "").strip()
         msg = f"hook '{script.name}' (layer={layer}) exited {result.returncode}" + (
