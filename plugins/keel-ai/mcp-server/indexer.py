@@ -6,15 +6,14 @@ import logging
 import subprocess
 import time
 from collections.abc import Iterator
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import voyageai
-from pymongo import DeleteMany, UpdateOne
-from pymongo.collection import Collection
-
 from atlas import VECTOR_INDEX_NAME
 from chunker import chunk_document, content_hash, prepend_metadata
+from pymongo import DeleteMany, UpdateOne
+from pymongo.collection import Collection
 
 _log = logging.getLogger(__name__)
 
@@ -27,11 +26,10 @@ _RETRY_BASE_DELAY = 1.0
 _LOCK_TTL = timedelta(minutes=10)
 
 _DOC_PATTERNS: dict[str, list[str]] = {
-    "scope": ["design/scope.md"],
-    "design": ["design/design.md"],
-    "milestones": ["design/milestones.toml"],
+    "scope": ["scope.md"],
+    "design": ["design.md"],
+    "milestones": ["milestones.toml"],
 }
-_DECISION_GLOB = "design/decisions/*.md"
 
 
 def _batch_by_tokens(
@@ -57,7 +55,10 @@ def _git_hash(project_dir: Path) -> str:
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"],
-            capture_output=True, text=True, timeout=5, cwd=project_dir,
+            capture_output=True,
+            text=True,
+            timeout=5,
+            cwd=project_dir,
         )
         return result.stdout.strip() if result.returncode == 0 else ""
     except Exception:
@@ -101,7 +102,7 @@ class Indexer:
     ) -> dict:
         files = self._discover_files(project_dir)
         git_h = _git_hash(project_dir)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         indexed = 0
         skipped = 0
@@ -127,26 +128,32 @@ class Indexer:
 
             for chunk in chunks:
                 c_hash = content_hash(chunk["content"])
-                if not full and self._chunk_unchanged(project_name, file_path, chunk["chunk_index"], c_hash):
+                if not full and self._chunk_unchanged(
+                    project_name, file_path, chunk["chunk_index"], c_hash
+                ):
                     skipped += 1
                     continue
 
                 embed_text = self._prepare_for_embedding(
-                    chunk["content"], project=project_name, doc_type=doc_type,
+                    chunk["content"],
+                    project=project_name,
+                    doc_type=doc_type,
                 )
                 texts_to_embed.append(embed_text)
-                chunk_data.append({
-                    **chunk,
-                    "project": project_name,
-                    "deliverable": deliverable,
-                    "doc_type": doc_type,
-                    "file_path": file_path,
-                    "content_hash": c_hash,
-                    "file_content_hash": file_hash,
-                    "token_count": len(chunk["content"]) // _CHARS_PER_TOKEN,
-                    "git_hash": git_h,
-                    "indexed_at": now,
-                })
+                chunk_data.append(
+                    {
+                        **chunk,
+                        "project": project_name,
+                        "deliverable": deliverable,
+                        "doc_type": doc_type,
+                        "file_path": file_path,
+                        "content_hash": c_hash,
+                        "file_content_hash": file_hash,
+                        "token_count": len(chunk["content"]) // _CHARS_PER_TOKEN,
+                        "git_hash": git_h,
+                        "indexed_at": now,
+                    }
+                )
 
             if not texts_to_embed:
                 continue
@@ -159,14 +166,19 @@ class Indexer:
                 continue
 
             ops = []
-            for cd, emb in zip(chunk_data, embeddings):
+            for cd, emb in zip(chunk_data, embeddings, strict=True):
                 cd["embedding"] = emb
-                ops.append(UpdateOne(
-                    {"project": cd["project"], "file_path": cd["file_path"],
-                     "chunk_index": cd["chunk_index"]},
-                    {"$set": cd},
-                    upsert=True,
-                ))
+                ops.append(
+                    UpdateOne(
+                        {
+                            "project": cd["project"],
+                            "file_path": cd["file_path"],
+                            "chunk_index": cd["chunk_index"],
+                        },
+                        {"$set": cd},
+                        upsert=True,
+                    )
+                )
             if ops:
                 self._coll.bulk_write(ops)
                 indexed += len(ops)
@@ -195,7 +207,7 @@ class Indexer:
                 if p.is_file():
                     files.append((pattern, doc_type, p))
 
-        decisions_dir = project_dir / "design" / "decisions"
+        decisions_dir = project_dir / "decisions"
         if decisions_dir.is_dir():
             for p in sorted(decisions_dir.glob("*.md")):
                 rel = f"decisions/{p.name}"
@@ -204,7 +216,11 @@ class Indexer:
         return files
 
     def _chunk_unchanged(
-        self, project: str, file_path: str, chunk_index: int, new_hash: str,
+        self,
+        project: str,
+        file_path: str,
+        chunk_index: int,
+        new_hash: str,
     ) -> bool:
         existing = self._coll.find_one(
             {"project": project, "file_path": file_path, "chunk_index": chunk_index},
@@ -221,14 +237,16 @@ class Indexer:
             for attempt in range(_MAX_RETRIES):
                 try:
                     result = self._voyage.embed(
-                        batch, model=_EMBED_MODEL, input_type="document",
+                        batch,
+                        model=_EMBED_MODEL,
+                        input_type="document",
                     )
                     all_embeddings.extend(result.embeddings)
                     break
                 except Exception as exc:
                     if attempt == _MAX_RETRIES - 1:
                         raise
-                    delay = _RETRY_BASE_DELAY * (2 ** attempt)
+                    delay = _RETRY_BASE_DELAY * (2**attempt)
                     _log.warning("Embed retry %d after error: %s", attempt + 1, exc)
                     time.sleep(delay)
         return all_embeddings
@@ -247,18 +265,22 @@ class Indexer:
                 ops.append(DeleteMany({"project": project, "file_path": fp}))
             elif fp in new_chunk_counts:
                 count = new_chunk_counts[fp]
-                ops.append(DeleteMany({
-                    "project": project,
-                    "file_path": fp,
-                    "chunk_index": {"$gte": count},
-                }))
+                ops.append(
+                    DeleteMany(
+                        {
+                            "project": project,
+                            "file_path": fp,
+                            "chunk_index": {"$gte": count},
+                        }
+                    )
+                )
 
         return ops
 
     def _acquire_lock(self, project: str) -> bool:
         from pymongo.errors import DuplicateKeyError
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         stale_cutoff = now - _LOCK_TTL
 
         # First, recover any stale locks older than TTL
@@ -303,20 +325,29 @@ class Indexer:
             filter_doc["doc_type"] = doc_type
 
         pipeline = [
-            {"$vectorSearch": {
-                "index": VECTOR_INDEX_NAME,
-                "path": "embedding",
-                "queryVector": query_embedding,
-                "numCandidates": num_candidates,
-                "limit": limit,
-                **({"filter": filter_doc} if filter_doc else {}),
-            }},
-            {"$project": {
-                "score": {"$meta": "vectorSearchScore"},
-                "project": 1, "file_path": 1, "section_heading": 1,
-                "content": 1, "doc_type": 1, "chunk_index": 1,
-                "token_count": 1, "deliverable": 1,
-            }},
+            {
+                "$vectorSearch": {
+                    "index": VECTOR_INDEX_NAME,
+                    "path": "embedding",
+                    "queryVector": query_embedding,
+                    "numCandidates": num_candidates,
+                    "limit": limit,
+                    **({"filter": filter_doc} if filter_doc else {}),
+                }
+            },
+            {
+                "$project": {
+                    "score": {"$meta": "vectorSearchScore"},
+                    "project": 1,
+                    "file_path": 1,
+                    "section_heading": 1,
+                    "content": 1,
+                    "doc_type": 1,
+                    "chunk_index": 1,
+                    "token_count": 1,
+                    "deliverable": 1,
+                }
+            },
         ]
         results = list(self._coll.aggregate(pipeline))
         return [r for r in results if r.get("score", 0) >= min_score]

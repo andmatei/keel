@@ -6,12 +6,11 @@ from pathlib import Path
 
 import typer
 
-from keel import git_ops, workspace
+from keel import git, workspace
 from keel.api import (
     ErrorCode,
     OpLog,
     Output,
-    RepoSpec,
     require_or_fail,
     slugify,
 )
@@ -90,7 +89,7 @@ def cmd_new(
     if repos and not no_worktree:
         for r in repos:
             rp = Path(r).expanduser().resolve()
-            if not git_ops.is_git_repo(rp):
+            if not git.is_git_repo(rp):
                 out.fail(f"not a git repo: {rp}", code=ErrorCode.NOT_A_REPO)
             repo_paths.append(rp)
 
@@ -136,9 +135,9 @@ def cmd_new(
             for rp, spec in zip(repo_paths, manifest.repos, strict=True):
                 wt_dest = proj / spec.worktree
                 try:
-                    git_ops.create_worktree(rp, wt_dest, branch=spec.branch_prefix)
+                    git.create_worktree(rp, wt_dest, branch=spec.branch_prefix)
                     created_worktrees.append(str(wt_dest))
-                except git_ops.GitError as e:
+                except git.GitError as e:
                     out.info(f"Files are at {proj}; clean up with `rm -rf {proj}` or retry.")
                     out.fail(f"worktree creation failed: {e}", code=ErrorCode.GIT_FAILED)
 

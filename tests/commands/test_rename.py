@@ -24,6 +24,22 @@ def test_rename_updates_manifest_name(projects, make_project) -> None:
     assert m.project.name == "bar"
 
 
+def test_rename_preserves_manifest_metadata(projects, make_project) -> None:
+    proj = make_project("foo", lifecycle="default", tags=["api"])
+    from keel.manifest import load_project_manifest, save_project_manifest
+
+    m = load_project_manifest(proj / "project.toml")
+    m.extensions = {"ai": {"enabled": False}}
+    save_project_manifest(proj / "project.toml", m)
+
+    result = runner.invoke(app, ["rename", "foo", "bar", "-y"])
+    assert result.exit_code == 0, result.stderr
+    m = load_project_manifest(projects / "bar" / "project.toml")
+    assert m.project.lifecycle == "default"
+    assert m.project.tags == ["api"]
+    assert m.extensions == {"ai": {"enabled": False}}
+
+
 def test_rename_target_exists(projects, make_project) -> None:
     make_project("foo")
     make_project("bar")
@@ -36,7 +52,7 @@ def test_rename_with_worktree_uses_git_worktree_move(
 ) -> None:
     from datetime import date
 
-    from keel import git_ops
+    from keel import git
     from keel.manifest import (
         ProjectManifest,
         ProjectMeta,
@@ -45,7 +61,7 @@ def test_rename_with_worktree_uses_git_worktree_move(
     )
 
     proj = make_project("foo")
-    git_ops.create_worktree(source_repo, proj / "code", branch="alice/foo")
+    git.create_worktree(source_repo, proj / "code", branch="alice/foo")
     # Update manifest to declare the repo
     m = ProjectManifest(
         project=ProjectMeta(name="foo", description="d", created=date(2026, 4, 29)),
@@ -61,13 +77,13 @@ def test_rename_with_worktree_uses_git_worktree_move(
     save_project_manifest(proj / "project.toml", m)
 
     move_calls = []
-    real_move = git_ops.move_worktree
+    real_move = git.move_worktree
 
     def spy(old, new):
         move_calls.append((str(old), str(new)))
         real_move(old, new)
 
-    monkeypatch.setattr("keel.git_ops.move_worktree", spy)
+    monkeypatch.setattr("keel.git.move_worktree", spy)
     result = runner.invoke(app, ["rename", "foo", "bar", "-y"], catch_exceptions=False)
     assert result.exit_code == 0
     assert len(move_calls) == 1

@@ -45,7 +45,7 @@ def test_task_worktree_creates_branch_worktree(
     # Add a milestone + task and start it (records a branch)
     runner.invoke(app, ["milestone", "add", "m1", "--title", "M1"])
     runner.invoke(app, ["task", "add", "t1", "--milestone", "m1", "--title", "x"])
-    runner.invoke(app, ["task", "start", "t1", "--branch", "feat/t1"])
+    runner.invoke(app, ["task", "start", "t1", "--branch", "feat/t1", "--no-worktree"])
 
     result = runner.invoke(app, ["task", "worktree", "t1"], catch_exceptions=False)
     assert result.exit_code == 0, result.stderr
@@ -99,7 +99,8 @@ def test_task_worktree_multi_repo_requires_explicit_repo(
     runner.invoke(app, ["code", "add", "--repo", str(second_repo)])
     runner.invoke(app, ["milestone", "add", "m1", "--title", "M1"])
     runner.invoke(app, ["task", "add", "t1", "--milestone", "m1", "--title", "x"])
-    runner.invoke(app, ["task", "start", "t1", "--branch", "feat/t1"])
+    start = runner.invoke(app, ["task", "start", "t1", "--branch", "feat/t1", "--no-worktree"])
+    assert start.exit_code == 0, start.stderr
 
     result = runner.invoke(app, ["task", "worktree", "t1"])
     assert result.exit_code == 2  # CONFLICTING_FLAGS exit code

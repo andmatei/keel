@@ -9,6 +9,7 @@ import typer
 from rich.markdown import Markdown
 
 from keel.api import HINT_LIST_DECISIONS, ErrorCode, Output, resolve_cli_scope
+from keel.util import is_path_component
 
 _FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n?", re.DOTALL)
 
@@ -28,6 +29,8 @@ def _split_frontmatter(text: str) -> tuple[dict[str, str], str]:
 
 def _find_decision(decisions_dir: Path, slug: str) -> Path | None:
     """Find a decision file by slug or full filename."""
+    if not is_path_component(slug):
+        return None
     if slug.endswith(".md"):
         candidate = decisions_dir / slug
         return candidate if candidate.is_file() else None

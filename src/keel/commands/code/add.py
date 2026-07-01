@@ -6,15 +6,14 @@ from pathlib import Path
 
 import typer
 
-from keel import git_ops, workspace
+from keel import git, workspace
 from keel.api import (
     ErrorCode,
     OpLog,
     Output,
-    ProjectManifest,
     RepoSpec,
+    edit_project_manifest,
     load_project_manifest,
-    save_project_manifest,
 )
 
 
@@ -48,7 +47,7 @@ def cmd_add(
     deliverable = scope.deliverable
 
     repo_path = Path(repo).expanduser().resolve()
-    if not git_ops.is_git_repo(repo_path):
+    if not git.is_git_repo(repo_path):
         out.fail(f"not a git repo: {repo_path}", code=ErrorCode.NOT_A_REPO)
 
     # Decide worktree dir name — derived from repo basename, prefixed with "code-".
@@ -58,7 +57,7 @@ def cmd_add(
     # Derive branch prefix if not supplied
     if branch_prefix is None:
         try:
-            user_slug = git_ops.git_user_slug(repo_path)
+            user_slug = git.git_user_slug(repo_path)
         except Exception:
             user_slug = "user"
         suffix = f"-{deliverable}" if deliverable else ""
@@ -66,7 +65,12 @@ def cmd_add(
 
     # Load manifest
     manifest_path = scope.manifest_path
-    m: ProjectManifest = load_project_manifest(manifest_path)
+    m = load_project_manifest(manifest_path)
+    if m.project.shared_worktree:
+        out.fail(
+            "cannot add repo to a shared-worktree deliverable",
+            code=ErrorCode.INVALID_STATE,
+        )
 
     # Detect duplicates
     for existing in m.repos:
@@ -96,19 +100,13 @@ def cmd_add(
         out.info(log.format_summary())
         return
 
-    # Append + write back
-    new_repos = list(m.repos) + [new_spec]
-    new_m = ProjectManifest(project=m.project, repos=new_repos)
-    save_project_manifest(manifest_path, new_m)
-
-    # Create worktree
     try:
-        git_ops.create_worktree(repo_path, unit_dir / wt_name, branch=branch_prefix)
-    except git_ops.GitError as e:
-        out.info(
-            "Manifest was updated; remove the new [[repos]] entry manually if you want to retry."
-        )
+        git.create_worktree(repo_path, unit_dir / wt_name, branch=branch_prefix)
+    except git.GitError as e:
         out.fail(f"worktree creation failed: {e}", code=ErrorCode.GIT_FAILED)
+
+    with edit_project_manifest(manifest_path) as manifest:
+        manifest.repos.append(new_spec)
 
     out.result(
         {

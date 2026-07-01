@@ -17,7 +17,6 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-import pytest
 from typer.testing import CliRunner
 
 from keel.app import app
@@ -48,7 +47,9 @@ def _make_second_repo(tmp_path: Path) -> Path:
     repo = tmp_path / "src2"
     repo.mkdir()
     subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.email", "t@t"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.email", "t@t"], cwd=repo, check=True, capture_output=True
+    )
     subprocess.run(["git", "config", "user.name", "T"], cwd=repo, check=True, capture_output=True)
     (repo / "README").write_text("x")
     subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
@@ -67,7 +68,9 @@ def test_start_auto_creates_worktree(projects, make_project, source_repo, monkey
     _seed(proj, monkeypatch)
     _add_source_repo(proj, source_repo)
 
-    result = runner.invoke(app, ["task", "start", "t1", "--branch", "feat/t1"], catch_exceptions=False)
+    result = runner.invoke(
+        app, ["task", "start", "t1", "--branch", "feat/t1"], catch_exceptions=False
+    )
     assert result.exit_code == 0, result.output
 
     # milestones.toml reflects active status + branch
@@ -89,7 +92,9 @@ def test_start_auto_worktree_uses_default_branch_as_base(
     _seed(proj, monkeypatch)
     _add_source_repo(proj, source_repo)
 
-    result = runner.invoke(app, ["task", "start", "t1", "--branch", "feat/t1"], catch_exceptions=False)
+    result = runner.invoke(
+        app, ["task", "start", "t1", "--branch", "feat/t1"], catch_exceptions=False
+    )
     assert result.exit_code == 0
 
     # The worktree was checked out from the default branch (main).
@@ -167,7 +172,9 @@ def test_start_uses_last_dependency_branch_as_base(
 
     runner.invoke(app, ["milestone", "add", "m1", "--title", "M1"])
     runner.invoke(app, ["task", "add", "t1", "--milestone", "m1", "--title", "Base task"])
-    runner.invoke(app, ["task", "add", "t2", "--milestone", "m1", "--title", "Stacked", "--depends-on", "t1"])
+    runner.invoke(
+        app, ["task", "add", "t2", "--milestone", "m1", "--title", "Stacked", "--depends-on", "t1"]
+    )
 
     # Start t1 first (records branch feat/t1 and creates worktree)
     r1 = runner.invoke(app, ["task", "start", "t1", "--branch", "feat/t1"], catch_exceptions=False)
@@ -180,7 +187,9 @@ def test_start_uses_last_dependency_branch_as_base(
     wt1 = wt1_candidates[0]
     (wt1 / "new_file.txt").write_text("change")
     subprocess.run(["git", "add", "."], cwd=wt1, check=True, capture_output=True)
-    subprocess.run(["git", "commit", "-m", "extra commit"], cwd=wt1, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "extra commit"], cwd=wt1, check=True, capture_output=True
+    )
 
     # Start t2: should use feat/t1 as base
     r2 = runner.invoke(app, ["task", "start", "t2", "--branch", "feat/t2"], catch_exceptions=False)
@@ -217,7 +226,9 @@ def test_start_dependency_no_branch_fails(projects, make_project, source_repo, m
 
     runner.invoke(app, ["milestone", "add", "m1", "--title", "M1"])
     runner.invoke(app, ["task", "add", "t1", "--milestone", "m1", "--title", "Base"])
-    runner.invoke(app, ["task", "add", "t2", "--milestone", "m1", "--title", "Stacked", "--depends-on", "t1"])
+    runner.invoke(
+        app, ["task", "add", "t2", "--milestone", "m1", "--title", "Stacked", "--depends-on", "t1"]
+    )
     # t1 is NOT started — it has no branch
 
     result = runner.invoke(app, ["task", "start", "t2", "--branch", "feat/t2"])
@@ -225,6 +236,10 @@ def test_start_dependency_no_branch_fails(projects, make_project, source_repo, m
     combined = result.output + (result.stderr or "")
     assert "t1" in combined
     assert "branch" in combined.lower() or "start" in combined.lower()
+    m = load_milestones_manifest(proj / "milestones.toml")
+    t2 = next(t for t in m.tasks if t.id == "t2")
+    assert t2.status == "planned"
+    assert t2.branch is None
 
 
 # ---------------------------------------------------------------------------
@@ -242,7 +257,9 @@ def test_start_explicit_base_overrides_depends_on(
 
     runner.invoke(app, ["milestone", "add", "m1", "--title", "M1"])
     runner.invoke(app, ["task", "add", "t1", "--milestone", "m1", "--title", "Base"])
-    runner.invoke(app, ["task", "add", "t2", "--milestone", "m1", "--title", "Stacked", "--depends-on", "t1"])
+    runner.invoke(
+        app, ["task", "add", "t2", "--milestone", "m1", "--title", "Stacked", "--depends-on", "t1"]
+    )
 
     # Start t1 first (records branch feat/t1 and creates worktree).
     runner.invoke(app, ["task", "start", "t1", "--branch", "feat/t1"], catch_exceptions=False)
@@ -260,11 +277,15 @@ def test_start_explicit_base_overrides_depends_on(
     # the explicit-base assertion is non-trivial (t2 must NOT include this commit).
     (wt1 / "new_file.txt").write_text("change")
     subprocess.run(["git", "add", "."], cwd=wt1, check=True, capture_output=True)
-    subprocess.run(["git", "commit", "-m", "extra commit"], cwd=wt1, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "extra commit"], cwd=wt1, check=True, capture_output=True
+    )
 
     # Start t2 with explicit --base pointing to 'main' instead of 'feat/t1'.
     result = runner.invoke(
-        app, ["task", "start", "t2", "--branch", "feat/t2", "--base", "main"], catch_exceptions=False
+        app,
+        ["task", "start", "t2", "--branch", "feat/t2", "--base", "main"],
+        catch_exceptions=False,
     )
     assert result.exit_code == 0, result.output
 
@@ -278,8 +299,7 @@ def test_start_explicit_base_overrides_depends_on(
 
     # feat/t2 must start at main's tip (before the extra t1 commit), not at feat/t1's tip.
     assert t2_head == main_tip_before_extra, (
-        f"feat/t2 should have been branched from main ({main_tip_before_extra}), "
-        f"got {t2_head}"
+        f"feat/t2 should have been branched from main ({main_tip_before_extra}), got {t2_head}"
     )
 
     # Sanity-check: feat/t1's tip is ahead of main, so if t2 had been branched
@@ -287,7 +307,9 @@ def test_start_explicit_base_overrides_depends_on(
     t1_head = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=wt1, capture_output=True, text=True
     ).stdout.strip()
-    assert t1_head != main_tip_before_extra, "feat/t1 tip should differ from main after extra commit"
+    assert t1_head != main_tip_before_extra, (
+        "feat/t1 tip should differ from main after extra commit"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -310,6 +332,10 @@ def test_start_multi_repo_requires_explicit_repo(
     assert result.exit_code != 0
     combined = result.output + (result.stderr or "")
     assert "repo" in combined.lower() or "--repo" in combined
+    m = load_milestones_manifest(proj / "milestones.toml")
+    t1 = next(t for t in m.tasks if t.id == "t1")
+    assert t1.status == "planned"
+    assert t1.branch is None
 
 
 def test_start_multi_repo_with_explicit_repo_succeeds(

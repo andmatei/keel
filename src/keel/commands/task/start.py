@@ -7,7 +7,7 @@ from pathlib import Path
 
 import typer
 
-from keel import git_ops
+from keel import git
 from keel.api import (
     ErrorCode,
     MissingDepBranch,
@@ -88,46 +88,45 @@ def cmd_start(
     pre_task = get_task(pre, id, out=out)
     from_status = pre_task.status
 
+    allowed = pre_task.status == "planned" or (pre_task.status in ("done", "cancelled") and reopen)
+    if not allowed:
+        if pre_task.status in ("done", "cancelled"):
+            out.fail(
+                f"cannot start task in status '{pre_task.status}' "
+                f"(use --reopen to re-start a done or cancelled task)",
+                code=ErrorCode.INVALID_STATE,
+            )
+        out.fail(
+            f"cannot start task in status '{pre_task.status}'",
+            code=ErrorCode.INVALID_STATE,
+        )
+
+    assert scope.project is not None
+    user = os.environ.get("USER", "user")
+    task_branch = branch or _default_branch(user, scope.project, pre_task.milestone, pre_task.id)
+
     # These are populated inside the hook_event block so they can be added to
     # the post payload before the context manager exits.
     worktree_dest: Path | None = None
     branch_base: str | None = None
+    task = pre_task
 
     try:
         with hook_event(
             "task.status",
             project=scope.project,
             deliverable=scope.deliverable,
-            payload={"id": id, "from": from_status, "to": "active", "command": "start", "forced": reopen},
+            payload={
+                "id": id,
+                "from": from_status,
+                "to": "active",
+                "command": "start",
+                "forced": reopen,
+            },
             positional_args=(id,),
             out=out,
             no_verify=no_verify,
         ) as e:
-            with edit_milestones(scope) as manifest:
-                task = get_task(manifest, id, out=out)
-
-                allowed = task.status == "planned" or (
-                    task.status in ("done", "cancelled") and reopen
-                )
-                if allowed:
-                    user = os.environ.get("USER", "user")
-                    task.branch = branch or _default_branch(user, scope.project, task.milestone, task.id)
-                    task.status = "active"
-                elif task.status in ("done", "cancelled"):
-                    out.fail(
-                        f"cannot start task in status '{task.status}' "
-                        f"(use --reopen to re-start a done or cancelled task)",
-                        code=ErrorCode.INVALID_STATE,
-                    )
-                else:
-                    out.fail(
-                        f"cannot start task in status '{task.status}'",
-                        code=ErrorCode.INVALID_STATE,
-                    )
-
-            # At this point milestones.toml has been updated (status=active, branch recorded).
-            # Now attempt worktree creation unless explicitly skipped.
-
             if not no_worktree:
                 proj_m: ProjectManifest = load_project_manifest(scope.manifest_path)
                 repos = proj_m.repos
@@ -160,7 +159,7 @@ def cmd_start(
                     try:
                         base_ref = resolve_base(
                             scope.milestones_manifest_path,
-                            task.depends_on,
+                            pre_task.depends_on,
                             base,
                         )
                     except MissingDepBranch as exc:
@@ -177,15 +176,18 @@ def cmd_start(
 
                     branch_base = base_ref  # may be None — create_worktree handles that
 
-                    dest = scope.unit_dir / f"{target.worktree}-{task.id}"
+                    dest = scope.unit_dir / f"{target.worktree}-{pre_task.id}"
                     repo_path = Path(target.remote)
 
                     try:
-                        git_ops.create_worktree(repo_path, dest, branch=task.branch, base=branch_base)
+                        git.create_worktree(repo_path, dest, branch=task_branch, base=branch_base)
                         worktree_dest = dest
-                    except git_ops.GitError as err:
+                    except git.GitError as err:
                         err_msg = str(err)
-                        if "already exists" in err_msg.lower() or "already checked out" in err_msg.lower():
+                        if (
+                            "already exists" in err_msg.lower()
+                            or "already checked out" in err_msg.lower()
+                        ):
                             hint = "branch already exists — use --branch to pick a different name or delete the existing branch"
                             out.fail(
                                 f"worktree creation failed: {err}\n  hint: {hint}",
@@ -193,10 +195,17 @@ def cmd_start(
                             )
                         out.fail(f"worktree creation failed: {err}", code=ErrorCode.GIT_FAILED)
 
-            e.add_post_payload({
-                "worktree": str(worktree_dest) if worktree_dest else None,
-                "branch_base": branch_base,
-            })
+            with edit_milestones(scope) as manifest:
+                task = get_task(manifest, id, out=out)
+                task.branch = task_branch
+                task.status = "active"
+
+            e.add_post_payload(
+                {
+                    "worktree": str(worktree_dest) if worktree_dest else None,
+                    "branch_base": branch_base,
+                }
+            )
 
     except HookAborted as exc:
         out.fail(

@@ -6,7 +6,7 @@ import shutil
 
 import typer
 
-from keel import git_ops, workspace
+from keel import git, workspace
 from keel.api import (
     HINT_LIST_DELIVERABLES,
     ErrorCode,
@@ -90,8 +90,8 @@ def cmd_rm(
             code_dir = deliv / "code"
             if code_dir.is_dir() and not keep_code:
                 try:
-                    git_ops.remove_worktree(code_dir, force=force)
-                except git_ops.GitError as e:
+                    git.remove_worktree(code_dir, force=force)
+                except git.GitError as e:
                     out.fail(
                         f"failed to remove worktree at {code_dir}: {e}",
                         code=ErrorCode.GIT_FAILED,

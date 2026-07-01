@@ -80,3 +80,17 @@ def test_add_with_explicit_worktree_name(projects, make_project, source_repo) ->
     )
     assert result.exit_code == 0
     assert (projects / "foo" / "code-custom").is_dir()
+
+
+def test_add_preserves_manifest_extensions(projects, make_project, source_repo) -> None:
+    proj = make_project("foo")
+    from keel.manifest import load_project_manifest, save_project_manifest
+
+    m = load_project_manifest(proj / "project.toml")
+    m.extensions = {"ai": {"enabled": False}}
+    save_project_manifest(proj / "project.toml", m)
+
+    result = runner.invoke(app, ["code", "add", "--project", "foo", "--repo", str(source_repo)])
+    assert result.exit_code == 0, result.stderr
+    m = load_project_manifest(proj / "project.toml")
+    assert m.extensions == {"ai": {"enabled": False}}

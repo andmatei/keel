@@ -8,7 +8,7 @@ from pathlib import Path
 import typer
 from rich.table import Table
 
-from keel import git_ops, workspace
+from keel import git, workspace
 from keel.api import Output, load_project_manifest
 
 
@@ -30,12 +30,12 @@ def _collect_status(unit_dir: Path, repos) -> list[_RepoStatus]:
         cloned = bool(
             r.local_hint
             and Path(r.local_hint).expanduser().is_dir()
-            and git_ops.is_git_repo(Path(r.local_hint).expanduser())
+            and git.is_git_repo(Path(r.local_hint).expanduser())
         )
         wt_path = unit_dir / r.worktree
-        worktree_exists = wt_path.is_dir() and git_ops.is_git_repo(wt_path)
-        branch = git_ops.current_branch(wt_path) if worktree_exists else None
-        dirty = git_ops.is_worktree_dirty(wt_path) if worktree_exists else None
+        worktree_exists = wt_path.is_dir() and git.is_git_repo(wt_path)
+        branch = git.current_branch(wt_path) if worktree_exists else None
+        dirty = git.is_worktree_dirty(wt_path) if worktree_exists else None
         rows.append(
             _RepoStatus(
                 remote=r.remote,

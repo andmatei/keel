@@ -50,7 +50,7 @@ def test_status_worktree_clean(projects, make_project, source_repo) -> None:
     """A live worktree on the right branch is reported as clean."""
     from datetime import date
 
-    from keel import git_ops
+    from keel import git
     from keel.manifest import (
         ProjectManifest,
         ProjectMeta,
@@ -60,7 +60,7 @@ def test_status_worktree_clean(projects, make_project, source_repo) -> None:
 
     proj = make_project("foo")
     branch = "alice/foo-base"
-    git_ops.create_worktree(source_repo, proj / "code", branch=branch)
+    git.create_worktree(source_repo, proj / "code", branch=branch)
 
     m = ProjectManifest(
         project=ProjectMeta(name="foo", description="d", created=date(2026, 4, 29)),
@@ -87,7 +87,7 @@ def test_status_worktree_clean(projects, make_project, source_repo) -> None:
 def test_status_worktree_dirty(projects, make_project, source_repo) -> None:
     from datetime import date
 
-    from keel import git_ops
+    from keel import git
     from keel.manifest import (
         ProjectManifest,
         ProjectMeta,
@@ -96,7 +96,7 @@ def test_status_worktree_dirty(projects, make_project, source_repo) -> None:
     )
 
     proj = make_project("foo")
-    git_ops.create_worktree(source_repo, proj / "code", branch="alice/foo-base")
+    git.create_worktree(source_repo, proj / "code", branch="alice/foo-base")
     (proj / "code" / "dirty.txt").write_text("not committed")
 
     m = ProjectManifest(

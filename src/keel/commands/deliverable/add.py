@@ -6,13 +6,11 @@ from pathlib import Path
 
 import typer
 
-from keel import git_ops, workspace
+from keel import git, workspace
 from keel.api import (
     ErrorCode,
     OpLog,
     Output,
-    ProjectManifest,
-    ProjectMeta,
     RepoSpec,
     load_project_manifest,
     require_or_fail,
@@ -85,7 +83,7 @@ def cmd_add(
     repo_paths: list[Path] = []
     if repo:
         rp = Path(repo).expanduser().resolve()
-        if not git_ops.is_git_repo(rp):
+        if not git.is_git_repo(rp):
             out.fail(f"not a git repo: {rp}", code=ErrorCode.NOT_A_REPO)
         repo_paths.append(rp)
 
@@ -104,7 +102,7 @@ def cmd_add(
     repo_specs: list[RepoSpec] = []
     if repo_paths:
         try:
-            user_slug = git_ops.git_user_slug(repo_paths[0])
+            user_slug = git.git_user_slug(repo_paths[0])
         except Exception:
             user_slug = "user"
         repo_specs.append(
@@ -162,16 +160,11 @@ def cmd_add(
             # Persist `shared_worktree=True` if requested. `_scaffold_unit` always builds with
             # the default (False); we re-save the manifest here when --shared is set.
             if shared:
-                manifest = ProjectManifest(
-                    project=ProjectMeta(
-                        name=manifest.project.name,
-                        description=manifest.project.description,
-                        created=manifest.project.created,
-                        lifecycle=manifest.project.lifecycle,
-                        shared_worktree=True,
-                    ),
-                    repos=[],
-                    extensions=manifest.extensions,
+                manifest = manifest.model_copy(
+                    update={
+                        "project": manifest.project.model_copy(update={"shared_worktree": True}),
+                        "repos": [],
+                    }
                 )
                 save_project_manifest(deliv_scope.manifest_path, manifest)
 
@@ -179,11 +172,9 @@ def cmd_add(
             if repo_paths:
                 wt_dest = deliv_scope.unit_dir / "code"
                 try:
-                    git_ops.create_worktree(
-                        repo_paths[0], wt_dest, branch=repo_specs[0].branch_prefix
-                    )
+                    git.create_worktree(repo_paths[0], wt_dest, branch=repo_specs[0].branch_prefix)
                     created_worktree = str(wt_dest)
-                except git_ops.GitError as e:
+                except git.GitError as e:
                     out.info(f"Files are at {deliv_scope.unit_dir}; clean up manually if needed.")
                     out.fail(f"worktree creation failed: {e}", code=ErrorCode.GIT_FAILED)
 

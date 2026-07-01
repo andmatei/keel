@@ -8,7 +8,7 @@ from pathlib import Path
 
 import typer
 
-from keel import git_ops, workspace
+from keel import git, workspace
 from keel.api import ErrorCode, OpLog, Output, confirm_destructive
 from keel.hooks import HookAborted, hook_event, hookable
 
@@ -76,9 +76,9 @@ def cmd_archive(
             # Remove worktrees under the project root
             for wt in _collect_worktrees(proj_dir):
                 try:
-                    git_ops.remove_worktree(wt, force=force)
+                    git.remove_worktree(wt, force=force)
                     removed_worktrees += 1
-                except git_ops.GitError as e:
+                except git.GitError as e:
                     out.fail(
                         f"can't remove worktree {wt}: {e} (use --force)", code=ErrorCode.GIT_FAILED
                     )
@@ -91,9 +91,9 @@ def cmd_archive(
                         continue
                     for wt in _collect_worktrees(d):
                         try:
-                            git_ops.remove_worktree(wt, force=force)
+                            git.remove_worktree(wt, force=force)
                             removed_worktrees += 1
-                        except git_ops.GitError as e:
+                        except git.GitError as e:
                             out.fail(
                                 f"can't remove worktree {wt}: {e} (use --force)",
                                 code=ErrorCode.GIT_FAILED,

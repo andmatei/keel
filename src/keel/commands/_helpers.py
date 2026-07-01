@@ -7,15 +7,15 @@ from datetime import date
 from pathlib import Path
 
 from keel import workspace
-from keel.templates import render_for_scope
 from keel.api import (
     ProjectManifest,
     ProjectMeta,
     RepoSpec,
     save_project_manifest,
 )
-from keel.git_ops import git_user_slug
+from keel.git import git_user_slug
 from keel.lifecycles import Lifecycle, lifecycle_source_path
+from keel.templates import render_for_scope
 
 
 def _build_repo_specs(slug: str, repo_paths: list[Path]) -> list[RepoSpec]:

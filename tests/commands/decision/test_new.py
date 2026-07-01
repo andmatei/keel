@@ -43,6 +43,14 @@ def test_new_writes_frontmatter_and_template(projects, make_project, monkeypatch
     assert "## Question" in body
 
 
+def test_new_rejects_path_slug(projects, make_project, monkeypatch) -> None:
+    proj = make_project("foo")
+    monkeypatch.chdir(proj)
+    result = runner.invoke(app, ["decision", "new", "Bad", "--slug", "../bad", "--no-edit"])
+    assert result.exit_code == 2
+    assert not (proj / "bad.md").exists()
+
+
 def test_new_fails_if_no_scope(projects, monkeypatch, tmp_path) -> None:
     monkeypatch.chdir(tmp_path)
     result = runner.invoke(app, ["decision", "new", "X", "--no-edit"])

@@ -14,6 +14,7 @@ import typer
 from keel import templates
 from keel.api import HINT_LIST_DECISIONS, ErrorCode, OpLog, Output, resolve_cli_scope, slugify
 from keel.hooks import HookAborted, hook_event, hookable
+from keel.util import is_path_component
 
 
 @hookable("decision.create")
@@ -62,8 +63,8 @@ def cmd_new(
 
     today = date.today().isoformat()
     slug_value = slug or slugify(title)
-    if not slug_value:
-        out.fail("invalid title (slug is empty)", code=ErrorCode.INVALID_TITLE, exit_code=2)
+    if not slug_value or not is_path_component(slug_value):
+        out.fail("invalid decision slug", code=ErrorCode.INVALID_TITLE, exit_code=2)
     filename = f"{today}-{slug_value}.md"
     path = target_dir / filename
 

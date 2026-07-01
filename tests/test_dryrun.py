@@ -20,7 +20,7 @@ def test_op_log_records_modifies_with_diff() -> None:
     assert log.ops[0].diff == "+ added line\n"
 
 
-def test_op_log_records_git_ops() -> None:
+def test_op_log_records_git() -> None:
     log = OpLog()
     log.create_worktree(Path("/p/code"), source=Path("/repo"), branch="me/foo")
     assert log.ops[0].kind == "git-worktree-create"

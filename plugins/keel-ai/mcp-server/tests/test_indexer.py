@@ -2,11 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from pathlib import Path
-from unittest.mock import MagicMock, patch, call
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from indexer import Indexer, _batch_by_tokens
 
@@ -34,14 +30,29 @@ class TestBatchByTokens:
 class TestIndexerMetadata:
     def test_prepends_metadata_to_content(self) -> None:
         idx = Indexer.__new__(Indexer)
-        result = idx._prepare_for_embedding(
-            "Some content", project="my-proj", doc_type="design"
-        )
+        result = idx._prepare_for_embedding("Some content", project="my-proj", doc_type="design")
         assert result.startswith("[project: my-proj] [type: design]")
         assert "Some content" in result
 
 
 class TestIndexerReindex:
+    def test_discovers_current_keel_layout(self, tmp_path) -> None:
+        (tmp_path / "scope.md").write_text("# Scope\n")
+        (tmp_path / "design.md").write_text("# Design\n")
+        (tmp_path / "milestones.toml").write_text("")
+        (tmp_path / "decisions").mkdir()
+        (tmp_path / "decisions" / "2026-01-01-choice.md").write_text("# Choice\n")
+
+        idx = Indexer(collection=MagicMock(), voyage_client=MagicMock())
+
+        files = {(path, doc_type) for path, doc_type, _abs in idx._discover_files(tmp_path)}
+        assert files == {
+            ("scope.md", "scope"),
+            ("design.md", "design"),
+            ("milestones.toml", "milestones"),
+            ("decisions/2026-01-01-choice.md", "decision"),
+        }
+
     @patch("indexer.voyageai")
     def test_skips_unchanged_chunks(self, mock_voyage) -> None:
         mock_coll = MagicMock()
@@ -76,7 +87,9 @@ class TestIndexerReindex:
         assert len(embeddings) == 1
         assert len(embeddings[0]) == 512
         mock_voyage_client.embed.assert_called_once_with(
-            ["hello world"], model="voyage-3-lite", input_type="document",
+            ["hello world"],
+            model="voyage-3-lite",
+            input_type="document",
         )
 
 
@@ -121,7 +134,7 @@ class TestSearch:
             {"score": 0.9, "project": "p", "content": "hello"},
         ]
 
-        results = idx.search([0.1] * 512, limit=3)
+        idx.search([0.1] * 512, limit=3)
         pipeline = mock_coll.aggregate.call_args[0][0]
         vs = pipeline[0]["$vectorSearch"]
         assert vs["limit"] == 3
@@ -179,6 +192,7 @@ class TestReindexLock:
 
         lock_coll = MagicMock()
         from pymongo.errors import DuplicateKeyError
+
         lock_coll.find_one_and_update.side_effect = DuplicateKeyError("duplicate key")
         idx._lock_collection = lock_coll
 
