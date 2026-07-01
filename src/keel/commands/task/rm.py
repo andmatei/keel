@@ -69,26 +69,31 @@ def cmd_rm(
     confirm_destructive(f"Remove task {id}?", yes=yes)
 
     try:
-        with hook_event(
-            "task.rm",
-            project=scope.project,
-            deliverable=scope.deliverable,
-            payload={"id": id},
-            positional_args=(id,),
-            out=out,
-            no_verify=no_verify,
+        with (
+            hook_event(
+                "task.rm",
+                project=scope.project,
+                deliverable=scope.deliverable,
+                payload={"id": id},
+                positional_args=(id,),
+                out=out,
+                no_verify=no_verify,
+            ),
+            edit_milestones(scope) as manifest,
         ):
-            with edit_milestones(scope) as manifest:
-                task_being_removed = get_task(manifest, id, out=out)
-                old_milestone_id = task_being_removed.milestone
+            task_being_removed = get_task(manifest, id, out=out)
+            old_milestone_id = task_being_removed.milestone
 
-                manifest.tasks = [t for t in manifest.tasks if t.id != id]
+            manifest.tasks = [t for t in manifest.tasks if t.id != id]
+            if force:
+                for task in manifest.tasks:
+                    task.depends_on = [dep for dep in task.depends_on if dep != id]
 
-                # If the old milestone was the implicit default and now empty, drop it.
-                if old_milestone_id == "default" and not any(
-                    t.milestone == "default" for t in manifest.tasks
-                ):
-                    manifest.milestones = [ms for ms in manifest.milestones if ms.id != "default"]
+            # If the old milestone was the implicit default and now empty, drop it.
+            if old_milestone_id == "default" and not any(
+                t.milestone == "default" for t in manifest.tasks
+            ):
+                manifest.milestones = [ms for ms in manifest.milestones if ms.id != "default"]
     except HookAborted as e:
         out.fail(
             f"task.rm aborted: {e} (use --no-verify to override)",

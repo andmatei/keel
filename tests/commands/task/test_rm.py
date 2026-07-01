@@ -42,6 +42,8 @@ def test_rm_force_overrides(projects, make_project, monkeypatch) -> None:
     _seed(proj, monkeypatch)
     result = runner.invoke(app, ["task", "rm", "t1", "-y", "--force"])
     assert result.exit_code == 0
+    m = load_milestones_manifest(proj / "milestones.toml", validate=True)
+    assert all("t1" not in t.depends_on for t in m.tasks)
 
 
 def test_rm_unknown_id(projects, make_project, monkeypatch) -> None:

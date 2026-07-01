@@ -108,7 +108,7 @@ def _check_worktrees_clean(event: HookEvent, *, out: Output) -> None:
     to = event.payload.get("to")
     if (fr, to) != ("shipping", "done"):
         return
-    from keel import git_ops
+    from keel import git
     from keel.manifest import load_project_manifest
 
     scope = _scope_from_event(event)
@@ -120,7 +120,7 @@ def _check_worktrees_clean(event: HookEvent, *, out: Output) -> None:
     dirty = []
     for repo in pm.repos:
         wt = unit_dir / repo.worktree
-        if wt.is_dir() and git_ops.is_worktree_dirty(wt):
+        if wt.is_dir() and git.is_worktree_dirty(wt):
             dirty.append(str(wt))
     if dirty:
         out.warn(f"preflight: dirty worktrees: {', '.join(dirty)}")

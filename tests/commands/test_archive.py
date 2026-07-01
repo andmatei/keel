@@ -33,10 +33,10 @@ def test_archive_dry_run(projects, make_project) -> None:
 
 def test_archive_with_worktree_clean(projects, make_project, source_repo) -> None:
     """Archive correctly removes a clean worktree before moving the project."""
-    from keel import git_ops
+    from keel import git
 
     proj = make_project("foo")
-    git_ops.create_worktree(source_repo, proj / "code", branch="alice/foo")
+    git.create_worktree(source_repo, proj / "code", branch="alice/foo")
     result = runner.invoke(app, ["archive", "foo", "-y"])
     assert result.exit_code == 0
     archive_dirs = list((projects / ".archive").glob("foo-*"))

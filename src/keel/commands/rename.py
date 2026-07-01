@@ -6,15 +6,12 @@ import shutil
 
 import typer
 
-from keel import git_ops, workspace
+from keel import git, workspace
 from keel.api import (
     HINT_LIST_PROJECTS,
     ErrorCode,
     OpLog,
     Output,
-    ProjectManifest,
-    ProjectMeta,
-    RepoSpec,
     confirm_destructive,
     load_project_manifest,
     save_project_manifest,
@@ -88,22 +85,15 @@ def cmd_rename(
                 old_wt = old_path / r.worktree
                 new_wt = new_path / r.worktree
                 if old_wt.is_dir():
-                    git_ops.move_worktree(old_wt, new_wt)
+                    git.move_worktree(old_wt, new_wt)
                     if rename_branches and r.branch_prefix and old in r.branch_prefix:
-                        old_branch = git_ops.current_branch(new_wt)
+                        old_branch = git.current_branch(new_wt)
                         if old_branch and old_branch.startswith(r.branch_prefix):
                             new_branch_prefix = r.branch_prefix.replace(old, new_slug, 1)
-                            new_branch = old_branch.replace(
-                                r.branch_prefix, new_branch_prefix, 1
-                            )
-                            git_ops.rename_branch(new_wt, old=old_branch, new=new_branch)
+                            new_branch = old_branch.replace(r.branch_prefix, new_branch_prefix, 1)
+                            git.rename_branch(new_wt, old=old_branch, new=new_branch)
                             branch_renames.append((old_branch, new_branch))
-                            r = RepoSpec(
-                                remote=r.remote,
-                                local_hint=r.local_hint,
-                                worktree=r.worktree,
-                                branch_prefix=new_branch_prefix,
-                            )
+                            r = r.model_copy(update={"branch_prefix": new_branch_prefix})
                 new_repos.append(r)
 
             for child in list(old_path.iterdir()):
@@ -114,13 +104,11 @@ def cmd_rename(
             if old_path.exists() and not any(old_path.iterdir()):
                 old_path.rmdir()
 
-            new_manifest = ProjectManifest(
-                project=ProjectMeta(
-                    name=new_slug,
-                    description=m.project.description,
-                    created=m.project.created,
-                ),
-                repos=new_repos,
+            new_manifest = m.model_copy(
+                update={
+                    "project": m.project.model_copy(update={"name": new_slug}),
+                    "repos": new_repos,
+                }
             )
             save_project_manifest(new_scope.manifest_path, new_manifest)
 

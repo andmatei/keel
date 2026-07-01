@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from keel.ai.config import AIConfig, parse_ai_config, resolve_triggers
 from keel.dryrun import Op, OpLog
 from keel.errors import (
     HINT_LIST_DECISIONS,
@@ -18,7 +19,6 @@ from keel.errors import (
     HINT_PASS_PROJECT,
     ErrorCode,
 )
-
 from keel.hooks import (
     HookAborted,
     HookEvent,
@@ -26,9 +26,6 @@ from keel.hooks import (
     hookable,
     subscribes_to,
 )
-
-from keel.ai.config import AIConfig, parse_ai_config, resolve_triggers
-
 from keel.lifecycle import (
     DEFAULT_MILESTONE_STATE,
     DEFAULT_PHASE,
@@ -50,7 +47,6 @@ from keel.lifecycles import (
     iter_lifecycles,
     load_lifecycle,
 )
-
 from keel.manifest import (
     Milestone,
     MilestonesManifest,
@@ -59,6 +55,7 @@ from keel.manifest import (
     RepoSpec,
     Task,
     edit_milestones,
+    edit_project_manifest,
     find_milestone,
     find_task,
     get_milestone,
@@ -68,7 +65,6 @@ from keel.manifest import (
     save_milestones_manifest,
     save_project_manifest,
 )
-
 from keel.milestones import (
     GraphError,
     blocked_tasks,
@@ -76,15 +72,12 @@ from keel.milestones import (
     topological_sort,
     validate_dag,
 )
-
 from keel.output import Output
 from keel.prompts import confirm_destructive, is_interactive, require_or_fail
-from keel.util import slugify
-
 from keel.ticketing import get_provider_for_project, safe_push, with_provider
 from keel.ticketing.base import Ticket, TicketProvider
 from keel.ticketing.registry import list_providers, load_provider
-
+from keel.util import slugify
 from keel.workspace import (
     Scope,
     deliverable_dir,
@@ -123,7 +116,7 @@ def resolve_base(
     Resolution order:
     1. ``explicit_base`` if provided
     2. Branch of the last dependency (if task has ``depends_on``)
-    3. ``None`` (caller will use ``git_ops.default_branch`` via ``create_worktree``)
+    3. ``None`` (caller will use ``git.default_branch`` via ``create_worktree``)
 
     Raises ``MissingDepBranch`` if the last dependency has no branch recorded
     or doesn't exist in the manifest.
@@ -192,6 +185,7 @@ __all__ = [
     "load_project_manifest",
     "save_milestones_manifest",
     "save_project_manifest",
+    "edit_project_manifest",
     # Milestones graph helpers
     "GraphError",
     "blocked_tasks",

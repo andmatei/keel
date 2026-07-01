@@ -37,6 +37,18 @@ def test_rm_with_force(projects, make_project, monkeypatch) -> None:
     assert result.exit_code == 0
 
 
+def test_rm_force_moves_referencing_tasks_to_default(projects, make_project, monkeypatch) -> None:
+    proj = make_project("foo")
+    monkeypatch.chdir(proj)
+    runner.invoke(app, ["milestone", "add", "m1", "--title", "T"])
+    runner.invoke(app, ["task", "add", "t1", "--milestone", "m1", "--title", "Task"])
+
+    result = runner.invoke(app, ["milestone", "rm", "m1", "-y", "--force"])
+    assert result.exit_code == 0
+    m = load_milestones_manifest(proj / "milestones.toml", validate=True)
+    assert [task.milestone for task in m.tasks] == ["default"]
+
+
 def test_rm_unknown_id(projects, make_project, monkeypatch) -> None:
     proj = make_project("foo")
     monkeypatch.chdir(proj)

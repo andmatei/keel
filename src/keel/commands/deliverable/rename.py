@@ -6,14 +6,12 @@ import shutil
 
 import typer
 
-from keel import git_ops, workspace
+from keel import git, workspace
 from keel.api import (
     HINT_LIST_DELIVERABLES,
     ErrorCode,
     OpLog,
     Output,
-    ProjectManifest,
-    ProjectMeta,
     load_project_manifest,
     resolve_cli_scope,
     save_project_manifest,
@@ -82,7 +80,7 @@ def cmd_rename(
             old_code = old_path / "code"
             if old_code.is_dir():
                 new_path.mkdir(parents=True, exist_ok=True)
-                git_ops.move_worktree(old_code, new_path / "code")
+                git.move_worktree(old_code, new_path / "code")
 
             # 1b. Move the design dir (and any other contents)
             new_path.mkdir(parents=True, exist_ok=True)
@@ -96,19 +94,29 @@ def cmd_rename(
             # 2. Update manifest's `name`
             manifest_path = new_scope.manifest_path
             m = load_project_manifest(manifest_path)
-            new_manifest = ProjectManifest(
-                project=ProjectMeta(
-                    name=new,
-                    description=m.project.description,
-                    created=m.project.created,
-                    lifecycle=m.project.lifecycle,
-                    shared_worktree=m.project.shared_worktree,
-                ),
-                repos=m.repos,
+            new_repos = list(m.repos)
+
+            # 3. (Optional) branch rename
+            code_dir = new_path / "code"
+            if code_dir.is_dir() and rename_branch and new_repos:
+                old_branch = new_repos[0].branch_prefix
+                if old_branch and old_branch.endswith(f"-{old}"):
+                    new_branch = old_branch[: -len(f"-{old}")] + f"-{new}"
+                    try:
+                        git.rename_branch(code_dir, old=old_branch, new=new_branch)
+                        new_repos[0] = new_repos[0].model_copy(update={"branch_prefix": new_branch})
+                    except git.GitError as e:
+                        out.warn(f"branch rename failed: {e}")
+
+            new_manifest = m.model_copy(
+                update={
+                    "project": m.project.model_copy(update={"name": new}),
+                    "repos": new_repos,
+                }
             )
             save_project_manifest(manifest_path, new_manifest)
 
-            # 3. Update parent design.md references (the source of truth post-0.0.3).
+            # 4. Update parent design.md references (the source of truth post-0.0.3).
             description = m.project.description
             parent_scope = workspace.Scope(project=project, deliverable=None)
             parent_design = parent_scope.design_md_path
@@ -122,17 +130,6 @@ def cmd_rename(
                     f"- **{new}**: {description}. See [design](deliverables/{new}/design.md).\n",
                 )
                 parent_design.write_text(text)
-
-            # 4. (Optional) branch rename
-            code_dir = new_path / "code"
-            if code_dir.is_dir() and rename_branch and m.repos:
-                old_branch = m.repos[0].branch_prefix
-                if old_branch and old_branch.endswith(f"-{old}"):
-                    new_branch = old_branch[: -len(f"-{old}")] + f"-{new}"
-                    try:
-                        git_ops.rename_branch(code_dir, old=old_branch, new=new_branch)
-                    except git_ops.GitError as e:
-                        out.warn(f"branch rename failed: {e}")
     except HookAborted as e:
         out.fail(
             f"deliverable.rename aborted: {e} (use --no-verify to override)",

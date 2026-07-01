@@ -8,7 +8,7 @@ from pathlib import Path
 import typer
 from rich.table import Table
 
-from keel import git_ops, workspace
+from keel import git, workspace
 from keel.api import Output, load_project_manifest
 
 
@@ -67,7 +67,7 @@ def _check_worktrees(unit_dir: Path, repos, label: str) -> list[_Finding]:
                 )
             )
             continue
-        if not git_ops.is_git_repo(wt):
+        if not git.is_git_repo(wt):
             findings.append(
                 _Finding(
                     "worktree",
@@ -79,7 +79,7 @@ def _check_worktrees(unit_dir: Path, repos, label: str) -> list[_Finding]:
             continue
         if r.branch_prefix:
             try:
-                cur = git_ops.current_branch(wt)
+                cur = git.current_branch(wt)
                 if cur and not cur.startswith(r.branch_prefix):
                     findings.append(
                         _Finding(
@@ -93,7 +93,7 @@ def _check_worktrees(unit_dir: Path, repos, label: str) -> list[_Finding]:
                     findings.append(
                         _Finding("worktree", "pass", f"{label} worktree {r.worktree} OK", str(wt))
                     )
-            except git_ops.GitError:
+            except git.GitError:
                 findings.append(
                     _Finding(
                         "worktree",

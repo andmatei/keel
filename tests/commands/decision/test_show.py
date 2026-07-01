@@ -45,6 +45,13 @@ def test_show_unknown_slug(projects, make_project, monkeypatch) -> None:
     assert result.exit_code == 1
 
 
+def test_show_rejects_path_slug(projects, make_project, monkeypatch) -> None:
+    proj = make_project("foo")
+    monkeypatch.chdir(proj)
+    result = runner.invoke(app, ["decision", "show", "../scope.md"])
+    assert result.exit_code == 1
+
+
 def test_show_unknown_slug_includes_hint(projects, make_project, monkeypatch) -> None:
     proj = make_project("foo")
     monkeypatch.chdir(proj)

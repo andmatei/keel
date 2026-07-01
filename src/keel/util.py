@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 _SLUG_RE = re.compile(r"[^a-z0-9-]+")
 
@@ -15,3 +16,10 @@ def slugify(name: str) -> str:
     """
     s = name.lower().strip().replace(" ", "-")
     return _SLUG_RE.sub("", s)
+
+
+def is_path_component(name: str) -> bool:
+    """True when name is one relative path segment, not a path."""
+    if not name or name in {".", ".."} or "/" in name or "\\" in name:
+        return False
+    return not Path(name).is_absolute() and Path(name).name == name

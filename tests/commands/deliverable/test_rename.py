@@ -30,6 +30,21 @@ def test_rename_updates_manifest_name(projects, make_project, make_deliverable) 
     assert m.project.name == "baz"
 
 
+def test_rename_preserves_manifest_metadata(projects, make_deliverable) -> None:
+    deliv = make_deliverable(project_name="foo", name="bar", description="d", tags=["api"])
+    from keel.manifest import load_project_manifest, save_project_manifest
+
+    m = load_project_manifest(deliv / "project.toml")
+    m.extensions = {"ai": {"enabled": False}}
+    save_project_manifest(deliv / "project.toml", m)
+
+    result = runner.invoke(app, ["deliverable", "rename", "bar", "baz", "-y", "--project", "foo"])
+    assert result.exit_code == 0, result.stderr
+    m = load_project_manifest(projects / "foo" / "deliverables" / "baz" / "project.toml")
+    assert m.project.tags == ["api"]
+    assert m.extensions == {"ai": {"enabled": False}}
+
+
 def test_rename_fails_if_target_exists(projects, make_project, make_deliverable) -> None:
     make_deliverable(project_name="foo", name="bar", description="d")
     make_deliverable(project_name="foo", name="baz", description="d")
@@ -51,7 +66,7 @@ def test_rename_updates_parent_references(projects, make_project) -> None:
 def test_rename_uses_git_worktree_move_when_code_present(
     projects, make_project, make_deliverable, monkeypatch, tmp_path
 ) -> None:
-    """When deliv/code/ exists, rename calls git_ops.move_worktree, not shutil.move on it."""
+    """When deliv/code/ exists, rename calls git.move_worktree, not shutil.move on it."""
     deliv = make_deliverable(project_name="foo", name="bar", description="d")
     (deliv / "code").mkdir()
     (deliv / "code" / "x.txt").write_text("data")
@@ -64,7 +79,7 @@ def test_rename_uses_git_worktree_move_when_code_present(
         shutil.move(str(old_dest), str(new_dest))
         move_calls.append((str(old_dest), str(new_dest)))
 
-    monkeypatch.setattr("keel.git_ops.move_worktree", fake_move_worktree)
+    monkeypatch.setattr("keel.git.move_worktree", fake_move_worktree)
     # Avoid the rename_branch path's git ops (it'll run because branch_prefix is None on this fixture)
     # The fixture's manifest has repos=[] so branch rename is skipped naturally.
     runner.invoke(app, ["deliverable", "rename", "bar", "baz", "-y", "--project", "foo"])
@@ -72,7 +87,7 @@ def test_rename_uses_git_worktree_move_when_code_present(
     assert not deliv.exists()
     assert new.is_dir()
     assert (new / "code" / "x.txt").read_text() == "data"
-    # git_ops.move_worktree was called exactly once with the correct paths:
+    # git.move_worktree was called exactly once with the correct paths:
     assert move_calls == [(str(deliv / "code"), str(new / "code"))]
 
 
@@ -83,7 +98,7 @@ def test_rename_does_not_call_git_worktree_repair(
     deliv = make_deliverable(project_name="foo", name="bar", description="d")
     (deliv / "code").mkdir()
     (deliv / "code" / "x.txt").write_text("x")
-    monkeypatch.setattr("keel.git_ops.move_worktree", lambda *a: None)
+    monkeypatch.setattr("keel.git.move_worktree", lambda *a: None)
     # Fail loudly if `git worktree repair` is invoked via subprocess.run
     import subprocess
 

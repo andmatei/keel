@@ -14,7 +14,7 @@ from pathlib import Path
 
 import typer
 
-from keel import git_ops
+from keel import git
 from keel.api import (
     ErrorCode,
     MissingDepBranch,
@@ -104,8 +104,8 @@ def cmd_worktree(
 
     # Idempotency: check if the worktree already exists.
     if dest.exists():
-        if git_ops.is_git_repo(dest):
-            actual_branch = git_ops.current_branch(dest)
+        if git.is_git_repo(dest):
+            actual_branch = git.current_branch(dest)
             if actual_branch == task.branch:
                 # Already a valid git worktree on the right branch — nothing to do.
                 out.result(
@@ -146,8 +146,8 @@ def cmd_worktree(
 
     repo_path = Path(target.remote)
     try:
-        git_ops.create_worktree(repo_path, dest, branch=task.branch, base=branch_base)
-    except git_ops.GitError as err:
+        git.create_worktree(repo_path, dest, branch=task.branch, base=branch_base)
+    except git.GitError as err:
         out.fail(f"worktree creation failed: {err}", code=ErrorCode.GIT_FAILED)
 
     out.result(

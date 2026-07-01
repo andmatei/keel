@@ -23,6 +23,12 @@ def test_init_refuses_to_overwrite(projects) -> None:
     assert result.exit_code != 0
 
 
+def test_init_rejects_path_name(projects) -> None:
+    result = runner.invoke(app, ["lifecycle", "init", "../outside"])
+    assert result.exit_code == 2
+    assert not (projects / ".keel" / "outside.toml").exists()
+
+
 def test_init_force_overwrites(projects) -> None:
     runner.invoke(app, ["lifecycle", "init", "research"])
     target = projects / ".keel" / "lifecycles" / "research.toml"

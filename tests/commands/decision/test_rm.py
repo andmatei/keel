@@ -23,3 +23,11 @@ def test_rm_unknown(projects, make_project, monkeypatch) -> None:
     monkeypatch.chdir(proj)
     result = runner.invoke(app, ["decision", "rm", "nonexistent", "-y"])
     assert result.exit_code == 1
+
+
+def test_rm_rejects_path_slug(projects, make_project, monkeypatch) -> None:
+    proj = make_project("foo")
+    monkeypatch.chdir(proj)
+    result = runner.invoke(app, ["decision", "rm", "../scope.md", "-y"])
+    assert result.exit_code == 1
+    assert (proj / "scope.md").is_file()

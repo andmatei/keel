@@ -6,6 +6,7 @@ import typer
 
 from keel.api import (
     ErrorCode,
+    Milestone,
     OpLog,
     Output,
     confirm_destructive,
@@ -78,17 +79,28 @@ def cmd_rm(
     confirm_destructive(f"Remove milestone {id}?", yes=yes)
 
     try:
-        with hook_event(
-            "milestone.rm",
-            project=scope.project,
-            deliverable=scope.deliverable,
-            payload={"id": id},
-            positional_args=(id,),
-            out=out,
-            no_verify=no_verify,
+        with (
+            hook_event(
+                "milestone.rm",
+                project=scope.project,
+                deliverable=scope.deliverable,
+                payload={"id": id},
+                positional_args=(id,),
+                out=out,
+                no_verify=no_verify,
+            ),
+            edit_milestones(scope) as manifest,
         ):
-            with edit_milestones(scope) as manifest:
-                manifest.milestones = [m for m in manifest.milestones if m.id != id]
+            if force and referencing:
+                if id == "default":
+                    manifest.tasks = [t for t in manifest.tasks if t.milestone != id]
+                else:
+                    if not any(m.id == "default" for m in manifest.milestones):
+                        manifest.milestones.append(Milestone(id="default", title="Tasks"))
+                    for task in manifest.tasks:
+                        if task.milestone == id:
+                            task.milestone = "default"
+            manifest.milestones = [m for m in manifest.milestones if m.id != id]
     except HookAborted as e:
         out.fail(
             f"milestone.rm aborted: {e} (use --no-verify to override)",

@@ -3,7 +3,7 @@
 Split into three submodules:
 - `models`: Pydantic schemas (RepoSpec, ProjectManifest, Milestone, Task, MilestonesManifest)
 - `io`: load/save functions
-- `queries`: find_milestone, find_task, edit_milestones context manager
+- `queries`: find_milestone, find_task, edit_* context managers
 
 Re-exported here for backward compatibility — callers can `from keel.manifest import X`.
 """
@@ -24,6 +24,7 @@ from keel.manifest.models import (
 )
 from keel.manifest.queries import (
     edit_milestones,
+    edit_project_manifest,
     find_milestone,
     find_task,
     get_milestone,
@@ -42,6 +43,7 @@ __all__ = [
     "save_milestones_manifest",
     "save_project_manifest",
     "edit_milestones",
+    "edit_project_manifest",
     "find_milestone",
     "find_task",
     "get_milestone",

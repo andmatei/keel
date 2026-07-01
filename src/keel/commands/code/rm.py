@@ -4,15 +4,14 @@ from __future__ import annotations
 
 import typer
 
-from keel import git_ops, workspace
+from keel import git, workspace
 from keel.api import (
     ErrorCode,
     OpLog,
     Output,
-    ProjectManifest,
     confirm_destructive,
+    edit_project_manifest,
     load_project_manifest,
-    save_project_manifest,
 )
 
 
@@ -41,7 +40,7 @@ def cmd_rm(
     deliverable = scope.deliverable
 
     manifest_path = scope.manifest_path
-    m: ProjectManifest = load_project_manifest(manifest_path)
+    m = load_project_manifest(manifest_path)
 
     target = next((r for r in m.repos if r.remote == repo), None)
     if target is None:
@@ -66,16 +65,14 @@ def cmd_rm(
     # Remove worktree first; if dirty and not --force, abort before manifest mutation
     if wt_path.is_dir():
         try:
-            git_ops.remove_worktree(wt_path, force=force)
-        except git_ops.GitError as e:
+            git.remove_worktree(wt_path, force=force)
+        except git.GitError as e:
             out.fail(
                 f"worktree removal failed (use --force if dirty): {e}", code=ErrorCode.GIT_FAILED
             )
 
-    # Update manifest
-    new_repos = [r for r in m.repos if r.remote != repo]
-    new_m = ProjectManifest(project=m.project, repos=new_repos)
-    save_project_manifest(manifest_path, new_m)
+    with edit_project_manifest(manifest_path) as manifest:
+        manifest.repos = [r for r in manifest.repos if r.remote != repo]
 
     out.result(
         {

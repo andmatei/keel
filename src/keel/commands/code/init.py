@@ -7,7 +7,7 @@ from pathlib import Path
 
 import typer
 
-from keel import git_ops, workspace
+from keel import git, workspace
 from keel.api import (
     ErrorCode,
     OpLog,
@@ -62,7 +62,7 @@ def cmd_init(
         source: Path | None = None
         if r.local_hint:
             candidate = Path(r.local_hint).expanduser()
-            if git_ops.is_git_repo(candidate):
+            if git.is_git_repo(candidate):
                 source = candidate
         if source is None:
             if clone_missing and r.local_hint:
@@ -88,9 +88,9 @@ def cmd_init(
                 )
 
         try:
-            git_ops.create_worktree(source, wt, branch=r.branch_prefix or "main")
+            git.create_worktree(source, wt, branch=r.branch_prefix or "main")
             created.append(str(wt))
-        except git_ops.GitError as e:
+        except git.GitError as e:
             out.fail(f"worktree creation failed: {e}", code=ErrorCode.GIT_FAILED)
 
     out.info(f"Initialized {len(created)} worktree(s).")
